@@ -1,270 +1,263 @@
-# MaxCLI - Personal Development CLI Tool
+# MaxCLI - Max's Personal Development CLI
 
-A universal CLI tool for development and operations tasks, featuring automatic personal configuration and setup utilities.
+A modular command-line utility for development operations, environment setup, and productivity tasks. Built with Python using functional programming principles and designed for extensibility.
 
-## 🚀 Quick Start
+## Features
 
-### Installation
+- **Google Cloud Platform Management**: Switch between gcloud configurations with ADC support
+- **Docker Operations**: Clean up Docker resources with both aggressive and gentle options
+- **Kubernetes**: Quick context switching
+- **Development Environment Setup**: Automated setup for new machines with different profiles
+- **Interactive Prompts**: User-friendly menus and confirmations
+- **Configuration Management**: Personal settings with JSON-based storage
+- **Extensible Architecture**: Easy to add new commands and modules
 
-1. **Clone the repository:**
+## Quick Start
+
+1. **Clone and install**:
 
     ```bash
     git clone <your-repo-url>
     cd maxcli
-    ```
-
-2. **Run the bootstrap script:**
-
-    ```bash
     chmod +x bootstrap.sh
     ./bootstrap.sh
     ```
 
-3. **Initialize your personal configuration:**
+    The bootstrap script automatically handles:
+    - Installing system dependencies (Homebrew, Python, pipx)
+    - Creating a virtual environment
+    - Installing Python dependencies  
+    - Setting up the MaxCLI package
+    - Creating the `max` command in your PATH
+
+2. **Restart your terminal** (or run `source ~/.zshrc`)
+
+3. **Initialize your configuration**:
+
     ```bash
     max init
     ```
 
-The initialization will prompt you for:
+4. **Start using the CLI**:
+    ```bash
+    max --help
+    ```
+    ```
 
-- Git username and email
-- Dotfiles repository URL (optional)
-- Google Cloud Platform project mappings (optional)
+## Commands Overview
 
-### Basic Usage
+### Configuration & Setup
 
-```bash
-# Show all available commands
-max --help
-
-# Switch gcloud configurations with interactive selection
-max switch-config
-
-# Create a new gcloud configuration
-max create-config myproject
-
-# Set up development environment
-max setup dev-full
-
-# Clean up Docker
-max docker-tidy
-```
-
-## 📋 Available Commands
-
-### Configuration Management
-
-- `max init` - Initialize or update personal configuration
-- `max init --force` - Force reconfiguration
+- `max init` - Initialize personal configuration
+- `max setup minimal` - Basic development environment setup
+- `max setup dev-full` - Complete development environment
+- `max setup apps` - Install GUI applications
 
 ### Google Cloud Platform
 
-- `max create-config <name>` - Create new gcloud config with authentication
-- `max switch-config [name]` - Switch gcloud config (interactive if no name provided)
-- `max list-configs` - List available configurations
+- `max create-config <name>` - Create new gcloud config with full auth setup
+- `max switch-config [name]` - Switch gcloud config and ADC (interactive if no name)
+- `max list-configs` - Show all available configurations
 
-### Docker Management
+### Docker & Kubernetes
 
 - `max docker-clean` - Aggressive Docker cleanup (removes everything unused)
 - `max docker-tidy` - Gentle Docker cleanup (preserves recent items)
-
-### Kubernetes
-
 - `max kctx <context>` - Switch Kubernetes context
 
-### Development Environment Setup
+### Database & Deployment
 
-- `max setup minimal` - Basic terminal and git setup
-- `max setup dev-full` - Complete development environment
-- `max setup apps` - Install GUI applications
-- `max setup apps --interactive` - Choose specific apps to install
+- `max backup-db` - Backup PostgreSQL database
+- `max deploy-app` - Deploy application (placeholder for your logic)
 
-### Other
+## Detailed Usage
 
-- `max backup-db` - Backup database (placeholder)
-- `max deploy-app` - Deploy application (placeholder)
+### Environment Setup
 
-## ⚙️ Configuration System
+The setup commands are designed for bootstrapping new development machines:
 
-MaxCLI uses a personal configuration file stored at `~/.config/maxcli/config.json`. This eliminates the need to modify code for personal use.
-
-### Configuration Structure
-
-```json
-{
-	"git_name": "Your Name",
-	"git_email": "your.email@example.com",
-	"dotfiles_repo": "git@github.com:yourusername/dotfiles.git",
-	"quota_project_mappings": {
-		"project-dev": "my-gcp-project-dev",
-		"project-prod": "my-gcp-project-prod"
-	}
-}
-```
-
-### Updating Configuration
+**Minimal Setup** - Essential tools only:
 
 ```bash
-# Update existing configuration
-max init
-
-# Force complete reconfiguration
-max init --force
+max setup minimal
 ```
 
-## 🛠️ Setup Profiles
+Installs: Homebrew, git, zsh, Oh My Zsh, and basic CLI tools.
 
-### Minimal Setup
-
-Basic development tools and terminal configuration:
-
-- Homebrew package manager
-- Essential CLI tools: git, zsh, wget, htop
-- Oh My Zsh terminal enhancement
-- Git configuration using your personal details
-
-### Dev Full Setup
-
-Complete development environment including:
-
-- Everything from minimal setup
-- Programming languages: Node.js, Python
-- Container tools: Docker, kubectl
-- Cloud tools: AWS CLI, Google Cloud SDK, Terraform
-- Development tools: tmux
-- Dotfiles cloning and setup
-
-### Apps Setup
-
-GUI applications for productivity and development:
-
-- **Development:** Visual Studio Code, Cursor, Docker Desktop
-- **Communication:** Slack
-- **Browsers:** Google Chrome, Arc Browser
-- **Tools:** Postman, Ghostty terminal
-
-Use `--interactive` flag for custom app selection.
-
-## 🔐 Google Cloud Platform Integration
-
-### Creating GCP Configurations
+**Full Development Setup** - Complete environment:
 
 ```bash
-# Create a new configuration with guided setup
+max setup dev-full
+```
+
+Includes everything from minimal plus: Node.js, Python, Docker, kubectl, AWS CLI, gcloud, Terraform, and your dotfiles.
+
+**GUI Applications**:
+
+```bash
+max setup apps                 # Install all apps
+max setup apps --interactive   # Choose specific apps
+```
+
+Installs: VS Code, Cursor, Docker Desktop, Chrome, Slack, Postman, etc.
+
+### GCP Configuration Management
+
+Create a new gcloud configuration with complete setup:
+
+```bash
 max create-config myproject
 ```
 
 This will:
 
-1. Create a new gcloud configuration
+1. Create the gcloud configuration
 2. Authenticate with your Google account
-3. Set up Application Default Credentials (ADC)
+3. Set up Application Default Credentials
 4. Configure quota project
-5. Save ADC for future switching
+5. Save ADC file for future switching
 
-### Switching Between Configurations
+Switch between configurations:
 
 ```bash
-# Interactive selection
-max switch-config
-
-# Direct switch
-max switch-config myproject
+max switch-config altekai       # Switch to specific config
+max switch-config               # Interactive menu
 ```
 
-### Project Mappings
+### Docker Management
 
-Configure quota project mappings during `max init`:
+For regular cleanup:
 
-- Maps configuration names to GCP project IDs
-- Automatically applies quota projects when switching
-- Can be updated anytime
+```bash
+max docker-tidy
+```
 
-## 🧹 Docker Management
+Removes containers stopped >24h, dangling images, unused networks, and old build cache.
 
-### Gentle Cleanup (`docker-tidy`)
+For aggressive cleanup:
 
-Safe cleanup that preserves:
+```bash
+max docker-clean
+```
 
-- All tagged images
-- Recently stopped containers (<24h)
-- All volumes
-- Recent build cache
+⚠️ Removes ALL unused Docker resources.
 
-### Aggressive Cleanup (`docker-clean`)
+## Configuration
 
-Removes all unused Docker resources:
+Configuration is stored in `~/.config/maxcli/config.json` and includes:
 
-- All stopped containers
-- All unused images
-- All unused volumes
-- All build cache
+```json
+{
+	"git": {
+		"name": "Your Name",
+		"email": "your.email@example.com"
+	},
+	"dotfiles_repo": "https://github.com/yourusername/dotfiles.git",
+	"gcp_quota_projects": {
+		"altekai": "altekai-project-id",
+		"company": "company-project-id"
+	}
+}
+```
 
-## 📁 File Structure
+## Project Structure
 
 ```
 maxcli/
-├── max                 # Main CLI script
-├── bootstrap.sh        # Installation script
-├── requirements.txt    # Python dependencies
-└── README.md          # This file
+├── main.py                 # Entry point
+├── maxcli/
+│   ├── __init__.py         # Package initialization
+│   ├── cli.py              # Main CLI module with argument parsing
+│   ├── config.py           # Configuration management
+│   ├── interactive.py      # Interactive utilities
+│   ├── system.py           # System utilities
+│   └── commands/           # Command modules
+│       ├── __init__.py
+│       ├── gcp.py          # Google Cloud Platform commands
+│       ├── docker.py       # Docker cleanup commands
+│       ├── kubernetes.py   # Kubernetes context switching
+│       ├── setup.py        # Development environment setup
+│       └── misc.py         # Miscellaneous commands
+├── requirements.txt        # Dependencies (optional enhancements)
+└── README.md              # This file
 ```
 
-## 🔧 Requirements
+## Extending the CLI
 
-- macOS (tested on macOS Sonoma)
-- Python 3.8+
-- Homebrew (installed by bootstrap script)
+### Adding New Commands
 
-### Optional Dependencies
+1. Create a new function in the appropriate module or create a new module in `maxcli/commands/`
+2. Import the function in `maxcli/cli.py`
+3. Add argument parser configuration in the `main()` function
 
-- `questionary` - Enhanced interactive prompts
-- `argcomplete` - Tab completion
+Example:
 
-## 🤝 Contributing
+```python
+# In maxcli/commands/mymodule.py
+def my_command(args):
+    """My custom command implementation."""
+    print(f"Running command with arg: {args.my_arg}")
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `max init` to ensure configuration works
-5. Submit a pull request
+# In maxcli/cli.py
+from .commands.mymodule import my_command
 
-## 💡 Tips
+# Add to main() function:
+my_parser = subparsers.add_parser('my-command', help='My custom command')
+my_parser.add_argument('my_arg', help='Required argument')
+my_parser.set_defaults(func=my_command)
+```
 
-- Run `max init` after major updates to refresh configuration
-- Use `max setup apps --interactive` to selectively install applications
-- The tool is idempotent - you can run setup commands multiple times safely
-- Configuration is stored locally and never shared
+### Design Principles
 
-## 📝 License
+- **Functional Programming**: Functions are pure when possible, with clear inputs and outputs
+- **Modularity**: Each command module is independent and focused
+- **User Experience**: Clear help text, interactive prompts, and confirmation for destructive operations
+- **Error Handling**: Graceful error handling with informative messages
+- **Configuration**: Personal settings stored in standard locations
 
-MIT License - feel free to adapt for your own use!
+## Dependencies
 
-## 🆘 Troubleshooting
+The CLI uses only Python standard library by default. Optional enhancements:
 
-### Configuration Issues
+- `questionary` - Better interactive prompts and menus
+- `argcomplete` - Shell autocompletion support
+
+Install optional dependencies:
 
 ```bash
-# Reset configuration
-max init --force
-
-# Check configuration location
-ls -la ~/.config/maxcli/
+pip install questionary argcomplete
 ```
 
-### PATH Issues
+## Platform Support
+
+Designed for macOS but most commands work on Linux. The setup commands use Homebrew (macOS) for package management.
+
+## License
+
+Personal utility - adapt as needed for your own use.
+
+## Contributing
+
+This is a personal CLI tool, but the modular structure makes it easy to adapt for your own needs. Feel free to fork and customize!
+
+## Troubleshooting
+
+**Command not found**: Ensure the script is executable and linked to your PATH:
 
 ```bash
-# Ensure ~/bin is in PATH
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+chmod +x main.py
+ln -sf $(pwd)/main.py /usr/local/bin/max
 ```
 
-### Permission Issues
+**Permission denied**: The script may need executable permissions:
 
 ```bash
-# Make script executable
-chmod +x ~/bin/max
+chmod +x main.py
 ```
 
-For more help, run any command with `--help` flag for detailed information.
+**Missing dependencies**: Some features require external tools:
+
+- GCP commands: `gcloud` CLI
+- Docker commands: `docker` CLI
+- Kubernetes commands: `kubectl` CLI
+- Setup commands: `brew` (macOS) or equivalent package manager
