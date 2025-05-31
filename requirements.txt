@@ -1,2 +1,11 @@
-questionary>=1.10.0
-argcomplete>=2.0.0
+# Core dependencies for MaxCLI
+# No hard dependencies - the CLI works with only Python standard library
+
+# Optional dependencies for enhanced functionality:
+questionary>=2.0.0    # Interactive prompts and menus (used in setup commands)
+argcomplete>=3.0.0    # Shell autocompletion support
+
+# Development dependencies (for contributors):
+# pytest>=7.0.0         # Unit testing framework
+# black>=23.0.0         # Code formatting
+# mypy>=1.0.0           # Type checking
