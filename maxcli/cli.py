@@ -19,6 +19,7 @@ from .ssh_manager import (
     handle_connect_target, handle_generate_keypair, handle_copy_public_key
 )
 from .ssh_backup import handle_export_ssh_keys, handle_import_ssh_keys
+from .ssh_rsync import handle_rsync_upload_backup, handle_rsync_download_backup
 
 def add_setup_subcommands(subparsers):
     """Add setup subcommands to the argument parser."""
@@ -521,6 +522,8 @@ Examples:
   max ssh remove-target old-server # Remove a target
   max ssh export-keys             # Export SSH keys to encrypted backup
   max ssh import-keys             # Import SSH keys from encrypted backup
+  max ssh rsync-upload-backup hetzner   # Upload backup to 'hetzner' server
+  max ssh rsync-download-backup hetzner # Download backup from 'hetzner' server
         """
     )
     ssh_subparsers = ssh_parser.add_subparsers(
@@ -801,6 +804,80 @@ Example conflict resolution:
     )
     import_parser.set_defaults(func=handle_import_ssh_keys)
 
+    # Upload backup command
+    upload_parser = ssh_subparsers.add_parser(
+        'rsync-upload-backup', 
+        help='Upload encrypted SSH key backup to a saved SSH target',
+        description="""
+Upload your encrypted SSH key backup file to a remote server using rsync over SSH.
+
+This command will:
+- Load the specified SSH target configuration
+- Check that the local backup file exists (~/ssh_keys_backup.tar.gz.gpg)
+- Create the ~/backups/ directory on the remote server if needed
+- Use rsync with SSH to securely transfer the backup file
+- Provide progress feedback during the upload
+
+REQUIREMENTS:
+- SSH target must exist in your configuration (use 'max ssh add-target' first)
+- Local backup file must exist (create with 'max ssh export-keys')
+- rsync must be installed on your system
+- SSH key-based authentication to the target server
+
+The backup file will be uploaded to ~/backups/ssh_keys_backup.tar.gz.gpg
+on the remote server.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh rsync-upload-backup hetzner    # Upload to 'hetzner' server
+  max ssh rsync-upload-backup prod       # Upload to 'prod' server
+  
+Typical workflow:
+  1. max ssh export-keys                 # Create encrypted backup
+  2. max ssh rsync-upload-backup hetzner # Upload to server
+        """
+    )
+    upload_parser.add_argument('target', help='Name of the SSH target to upload backup to')
+    upload_parser.set_defaults(func=handle_rsync_upload_backup)
+
+    # Download backup command
+    download_parser = ssh_subparsers.add_parser(
+        'rsync-download-backup', 
+        help='Download encrypted SSH key backup from a saved SSH target',
+        description="""
+Download your encrypted SSH key backup file from a remote server using rsync over SSH.
+
+This command will:
+- Load the specified SSH target configuration
+- Check that the backup file exists on the remote server
+- Use rsync with SSH to securely download the backup file
+- Overwrite any existing local backup file
+- Provide progress feedback during the download
+
+REQUIREMENTS:
+- SSH target must exist in your configuration (use 'max ssh add-target' first)
+- Backup file must exist on remote server (upload with 'max ssh rsync-upload-backup')
+- rsync must be installed on your system
+- SSH key-based authentication to the target server
+
+The backup file will be downloaded from ~/backups/ssh_keys_backup.tar.gz.gpg
+on the remote server to ~/ssh_keys_backup.tar.gz.gpg locally.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh rsync-download-backup hetzner  # Download from 'hetzner' server
+  max ssh rsync-download-backup prod     # Download from 'prod' server
+  
+Typical workflow:
+  1. max ssh rsync-download-backup hetzner # Download from server
+  2. max ssh import-keys                   # Import downloaded keys
+        """
+    )
+    download_parser.add_argument('target', help='Name of the SSH target to download backup from')
+    download_parser.set_defaults(func=handle_rsync_download_backup)
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -828,6 +905,8 @@ Examples:
   max ssh generate-keypair dev ~/.ssh/dev_key --type ed25519
   max ssh export-keys             # Export SSH keys to encrypted backup
   max ssh import-keys             # Import SSH keys from encrypted backup
+  max ssh rsync-upload-backup hetzner   # Upload backup to 'hetzner' server
+  max ssh rsync-download-backup hetzner # Download backup from 'hetzner' server
         """
     )
     subparsers = parser.add_subparsers(

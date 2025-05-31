@@ -296,6 +296,72 @@ max ssh import-keys
 - SSH target profiles from `~/.config/maxcli/ssh_targets.json`
 - Compressed and encrypted in a single portable file
 
+### SSH Backup Upload and Download
+
+MaxCLI provides secure remote backup capabilities for your encrypted SSH key backups using rsync over SSH.
+
+**Upload Backup**
+
+Upload your encrypted SSH backup to a remote server:
+
+```bash
+max ssh rsync-upload-backup <target-name>
+```
+
+This will securely upload your backup to the selected SSH target.
+
+**Download Backup**
+
+Download your encrypted SSH backup from a remote server:
+
+```bash
+max ssh rsync-download-backup <target-name>
+```
+
+This will securely download the backup from your server back to your machine.
+
+⚠️ **Note**: Only encrypted backups (.tar.gz.gpg) are transferred to ensure security.
+
+**Complete remote backup workflow example**:
+
+```bash
+# 1. Create and export SSH keys backup
+max ssh export-keys
+# ✅ Backup saved to ~/ssh_keys_backup.tar.gz.gpg
+
+# 2. Upload backup to your server
+max ssh rsync-upload-backup hetzner
+# 🔄 Uploading SSH backup to 'hetzner'...
+# ✅ Successfully uploaded SSH backup to 'hetzner'
+# 📍 Remote location: ~/backups/ssh_keys_backup.tar.gz.gpg
+
+# 3. Later, on a new machine, download and restore
+max ssh rsync-download-backup hetzner
+# 🔄 Downloading SSH backup from 'hetzner'...
+# ✅ Successfully downloaded SSH backup from 'hetzner'
+# 💡 Import keys using: max ssh import-keys
+
+# 4. Import the downloaded backup
+max ssh import-keys
+# ✅ SSH keys restored to ~/.ssh/
+```
+
+**Requirements for remote backup**:
+
+- SSH target must exist in your configuration (`max ssh add-target`)
+- SSH key-based authentication to the target server
+- `rsync` installed on your local system
+- Backup file created locally (`max ssh export-keys`) for upload
+- Backup file exists on remote server for download
+
+**Security features**:
+
+- **SSH Authentication**: Uses your configured SSH keys for secure transport
+- **Encrypted-Only Transfer**: Only transfers GPG-encrypted backup files
+- **Progress Feedback**: Real-time transfer progress during upload/download
+- **Remote Directory Creation**: Automatically creates `~/backups/` on the server
+- **Safe Overwrite**: Local files are safely overwritten during download
+
 ## Configuration
 
 Configuration is stored in `~/.config/maxcli/config.json` and includes:
