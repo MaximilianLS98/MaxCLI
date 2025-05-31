@@ -14,6 +14,11 @@ from .commands.coolify import (
     coolify_restart_service, coolify_status, coolify_start_application,
     coolify_stop_application, coolify_restart_application, coolify_deploy_application
 )
+from .ssh_manager import (
+    handle_list_targets, handle_add_target, handle_remove_target,
+    handle_connect_target, handle_generate_keypair, handle_copy_public_key
+)
+from .ssh_backup import handle_export_ssh_keys, handle_import_ssh_keys
 
 def add_setup_subcommands(subparsers):
     """Add setup subcommands to the argument parser."""
@@ -487,6 +492,290 @@ Examples:
     deploy_app_parser.add_argument('uuid', help='Application UUID to deploy')
     deploy_app_parser.set_defaults(func=coolify_deploy_application)
 
+def add_ssh_subcommands(subparsers):
+    """Add SSH management subcommands to the argument parser."""
+    ssh_parser = subparsers.add_parser(
+        'ssh', 
+        help='Manage SSH connection profiles and keys',
+        description="""
+Manage SSH connection profiles and keys for quick and secure server access.
+
+This command provides comprehensive SSH management including:
+- Store and manage SSH connection profiles with user, host, port, and key settings
+- Quick connection to saved targets using stored credentials
+- SSH key generation and management
+- Public key deployment to servers
+
+All SSH profiles are stored securely in ~/.config/maxcli/ssh_targets.json
+with proper file permissions (600) for security.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh list-targets            # Show all saved SSH targets
+  max ssh add-target prod ubuntu 192.168.1.100 -p 2222 -k ~/.ssh/prod_key
+  max ssh connect prod            # Connect to 'prod' target
+  max ssh connect                 # Interactive target selection
+  max ssh generate-keypair dev ~/.ssh/dev_key --type ed25519
+  max ssh copy-public-key prod    # Copy public key to 'prod' server
+  max ssh remove-target old-server # Remove a target
+  max ssh export-keys             # Export SSH keys to encrypted backup
+  max ssh import-keys             # Import SSH keys from encrypted backup
+        """
+    )
+    ssh_subparsers = ssh_parser.add_subparsers(
+        title="SSH Commands", 
+        dest="ssh_command",
+        description="Choose an SSH management operation",
+        metavar="<command>"
+    )
+    ssh_parser.set_defaults(func=lambda _: ssh_parser.print_help())
+
+    # List targets command
+    list_parser = ssh_subparsers.add_parser(
+        'list-targets', 
+        help='List all saved SSH targets',
+        description="""
+Display all saved SSH connection targets in a formatted table.
+
+Shows target name, username, hostname/IP, port, and private key path
+for all configured SSH targets. If no targets are configured, displays
+a helpful message.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max ssh list-targets            # Show all SSH targets in table format
+        """
+    )
+    list_parser.set_defaults(func=handle_list_targets)
+
+    # Add target command
+    add_parser = ssh_subparsers.add_parser(
+        'add-target', 
+        help='Add a new SSH target profile',
+        description="""
+Add a new SSH connection profile for quick access to a server.
+
+The target will be saved with the specified connection parameters and can
+be used with 'max ssh connect <name>' for quick connections.
+
+REQUIREMENTS:
+- The private key file must exist at the specified path
+- The target name must be unique (not already in use)
+- Port must be between 1 and 65535
+
+The private key path will be expanded (~ becomes home directory) and
+validated before saving the target.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh add-target prod ubuntu 192.168.1.100
+  max ssh add-target dev root server.example.com -p 2222 -k ~/.ssh/dev_key
+  max ssh add-target staging deploy 10.0.0.5 --port 22 --key ~/.ssh/staging_rsa
+        """
+    )
+    add_parser.add_argument('name', help='Unique name for this SSH target')
+    add_parser.add_argument('user', help='SSH username (e.g., ubuntu, root)')
+    add_parser.add_argument('host', help='Server hostname or IP address')
+    add_parser.add_argument('-p', '--port', type=int, default=22, help='SSH port (default: 22)')
+    add_parser.add_argument('-k', '--key', default='~/.ssh/id_rsa', help='Path to private key file (default: ~/.ssh/id_rsa)')
+    add_parser.set_defaults(func=handle_add_target)
+
+    # Remove target command
+    remove_parser = ssh_subparsers.add_parser(
+        'remove-target', 
+        help='Remove an SSH target by name',
+        description="""
+Remove a saved SSH target from the configuration.
+
+This only removes the target from MaxCLI's configuration - it does not
+affect the actual server or SSH keys. The target name must match exactly.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh remove-target old-server # Remove 'old-server' target
+  max ssh remove-target staging    # Remove 'staging' target
+        """
+    )
+    remove_parser.add_argument('name', help='Name of the SSH target to remove')
+    remove_parser.set_defaults(func=handle_remove_target)
+
+    # Connect command
+    connect_parser = ssh_subparsers.add_parser(
+        'connect', 
+        help='Connect to an SSH target',
+        description="""
+Connect to a saved SSH target using its stored configuration.
+
+If no target name is provided, an interactive menu will be shown to select
+from available targets. The connection uses the stored username, host, port,
+and private key for the target.
+
+INTERACTIVE MODE: When no target name is provided:
+- If 'questionary' is available: Shows arrow-key navigatable menu
+- Fallback mode: Shows numbered list with text input
+
+The SSH connection replaces the current process, so you'll be directly
+connected to the remote server.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh connect prod            # Connect to 'prod' target directly
+  max ssh connect                 # Show interactive target selection menu
+  max ssh connect staging         # Connect to 'staging' target
+        """
+    )
+    connect_parser.add_argument('name', nargs='?', help='Name of the SSH target to connect to (optional - shows menu if not provided)')
+    connect_parser.set_defaults(func=handle_connect_target)
+
+    # Generate keypair command
+    keygen_parser = ssh_subparsers.add_parser(
+        'generate-keypair', 
+        help='Generate a new SSH keypair',
+        description="""
+Generate a new SSH keypair (private and public key) using ssh-keygen.
+
+Creates both private key and public key (.pub) files at the specified location.
+The keypair can then be used for SSH authentication. The generated keys
+will have proper permissions set automatically.
+
+SECURITY NOTES:
+- Private key gets 600 permissions (owner read/write only)
+- Public key gets 644 permissions (owner read/write, others read)
+- Keys are generated without a passphrase for automation compatibility
+- Key comment includes the name and '@maxcli-generated' for identification
+
+If a key already exists at the target path, you'll be prompted to overwrite.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh generate-keypair prod ~/.ssh/prod_key
+  max ssh generate-keypair dev ~/.ssh/dev_key --type ed25519
+  max ssh generate-keypair backup ~/.ssh/backup_rsa --type rsa
+        """
+    )
+    keygen_parser.add_argument('name', help='Identifier for the keypair (used in key comment)')
+    keygen_parser.add_argument('key_path', help='Path where to save the private key')
+    keygen_parser.add_argument('-t', '--type', default='ed25519', 
+                              choices=['ed25519', 'rsa', 'ecdsa'], 
+                              help='Key type to generate (default: ed25519)')
+    keygen_parser.set_defaults(func=handle_generate_keypair)
+
+    # Copy public key command
+    copy_parser = ssh_subparsers.add_parser(
+        'copy-public-key', 
+        help='Copy public key to a target server',
+        description="""
+Copy the public key to a target server using ssh-copy-id.
+
+This command takes a saved SSH target and copies the corresponding public key
+(.pub file) to the target server's authorized_keys file. This enables
+password-less SSH authentication for future connections.
+
+REQUIREMENTS:
+- The SSH target must exist in your configuration
+- The public key file (.pub) must exist (generate with 'generate-keypair' if needed)
+- You must have password access to the target server for the initial copy
+- ssh-copy-id must be available in your PATH
+
+After successful copying, you can connect to the server using the private key
+without entering a password.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh copy-public-key prod    # Copy public key to 'prod' target
+  max ssh copy-public-key staging # Copy public key to 'staging' target
+  
+Typical workflow:
+  1. max ssh generate-keypair prod ~/.ssh/prod_key
+  2. max ssh add-target prod ubuntu 192.168.1.100 -k ~/.ssh/prod_key
+  3. max ssh copy-public-key prod  # Enter password when prompted
+  4. max ssh connect prod          # Now connects without password
+        """
+    )
+    copy_parser.add_argument('name', help='Name of the SSH target to copy public key to')
+    copy_parser.set_defaults(func=handle_copy_public_key)
+
+    # Export SSH keys command
+    export_parser = ssh_subparsers.add_parser(
+        'export-keys', 
+        help='Export selected SSH keys and profiles to encrypted backup',
+        description="""
+Export selected SSH keys and SSH target profiles to an encrypted backup file.
+
+This command provides secure backup of your SSH authentication assets:
+- Interactive selection of private keys from ~/.ssh/
+- Automatic inclusion of corresponding public keys (.pub files)
+- Inclusion of SSH target profiles from MaxCLI configuration
+- AES256 encryption with GPG
+- GPG handles password prompting securely
+- Automatic cleanup of unencrypted temporary files
+- Fail-safe cleanup: unencrypted files deleted even if encryption fails
+- Secure file permissions throughout the process
+
+The encrypted backup file is saved as ~/ssh_keys_backup.tar.gz.gpg
+and can be imported on any machine with the 'ssh-import-keys' command.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max ssh export-keys             # Interactive selection and export
+
+Typical workflow:
+  1. Select SSH keys to backup (interactive checkboxes)
+  2. GPG prompts for encryption password (with confirmation)
+  3. GPG encrypts the backup with AES256
+  4. Encrypted file saved to ~/ssh_keys_backup.tar.gz.gpg
+        """
+    )
+    export_parser.set_defaults(func=handle_export_ssh_keys)
+
+    # Import SSH keys command
+    import_parser = ssh_subparsers.add_parser(
+        'import-keys', 
+        help='Import SSH keys and profiles from encrypted backup',
+        description="""
+Import SSH keys and SSH target profiles from an encrypted backup file.
+
+This command restores SSH authentication assets from a backup created
+with 'ssh-export-keys':
+- Interactive selection of backup file (or manual path entry)
+- GPG decryption with interactive password prompt
+- Validation of backup contents before extraction
+- Restoration of keys to ~/.ssh/ with proper permissions
+- Restoration of SSH target profiles to MaxCLI configuration
+
+SECURITY FEATURES:
+- GPG handles password prompting securely
+- Automatic file permission setting (600 for private keys, 644 for public)
+- Directory creation with secure permissions (700)
+- Validation of backup structure before extraction
+- Automatic cleanup of temporary decrypted files
+
+Existing files with the same names will be overwritten during import.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max ssh import-keys             # Interactive backup file selection
+  max ssh import-keys             # Enter custom backup file path
+
+Typical workflow:
+  1. Select backup file (from home directory or custom path)
+  2. GPG prompts for decryption password
+  3. Review backup contents and confirm extraction
+  4. Keys restored to ~/.ssh/ with proper permissions
+  5. SSH target profiles restored to MaxCLI configuration
+        """
+    )
+    import_parser.set_defaults(func=handle_import_ssh_keys)
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -508,6 +797,12 @@ Examples:
   max coolify status              # Check Coolify instance status overview
   max coolify services            # List all services and their status
   max coolify applications        # List all applications and their status
+  max ssh list-targets            # Show all saved SSH targets
+  max ssh add-target prod ubuntu 192.168.1.100 -p 2222 -k ~/.ssh/prod_key
+  max ssh connect prod            # Connect to 'prod' SSH target
+  max ssh generate-keypair dev ~/.ssh/dev_key --type ed25519
+  max ssh export-keys             # Export SSH keys to encrypted backup
+  max ssh import-keys             # Import SSH keys from encrypted backup
         """
     )
     subparsers = parser.add_subparsers(
@@ -754,6 +1049,9 @@ Example:
 
     # Add Coolify subcommands
     add_coolify_subcommands(subparsers)
+
+    # Add SSH subcommands
+    add_ssh_subcommands(subparsers)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):

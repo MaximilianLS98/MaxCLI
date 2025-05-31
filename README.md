@@ -24,9 +24,10 @@ A modular command-line utility for development operations, environment setup, an
     ```
 
     The bootstrap script automatically handles:
+
     - Installing system dependencies (Homebrew, Python, pipx)
     - Creating a virtual environment
-    - Installing Python dependencies  
+    - Installing Python dependencies
     - Setting up the MaxCLI package
     - Creating the `max` command in your PATH
 
@@ -39,9 +40,13 @@ A modular command-line utility for development operations, environment setup, an
     ```
 
 4. **Start using the CLI**:
+
     ```bash
     max --help
     ```
+
+    ```
+
     ```
 
 ## Commands Overview
@@ -58,6 +63,17 @@ A modular command-line utility for development operations, environment setup, an
 - `max create-config <name>` - Create new gcloud config with full auth setup
 - `max switch-config [name]` - Switch gcloud config and ADC (interactive if no name)
 - `max list-configs` - Show all available configurations
+
+### SSH Management
+
+- `max ssh list-targets` - List all saved SSH connection profiles
+- `max ssh add-target <name> <user> <host>` - Add new SSH target profile
+- `max ssh connect [name]` - Connect to SSH target (interactive if no name)
+- `max ssh generate-keypair <name> <path>` - Generate new SSH keypair
+- `max ssh copy-public-key <name>` - Copy public key to target server
+- `max ssh remove-target <name>` - Remove SSH target profile
+- `max ssh export-keys` - Export SSH keys and profiles to encrypted backup
+- `max ssh import-keys` - Import SSH keys and profiles from encrypted backup
 
 ### Docker & Kubernetes
 
@@ -142,6 +158,140 @@ max docker-clean
 
 ⚠️ Removes ALL unused Docker resources.
 
+### SSH Management
+
+The SSH manager provides secure storage and management of SSH connection profiles with key-based authentication.
+
+**Add SSH targets for quick connections**:
+
+```bash
+# Basic target with default port and key
+max ssh add-target prod ubuntu 192.168.1.100
+
+# Custom port and key file
+max ssh add-target staging deploy server.example.com -p 2222 -k ~/.ssh/staging_key
+
+# Add target with all options
+max ssh add-target dev root 10.0.0.5 --port 22 --key ~/.ssh/dev_rsa
+```
+
+**Connect to targets**:
+
+```bash
+max ssh connect prod           # Connect to 'prod' target directly
+max ssh connect               # Show interactive menu to choose target
+```
+
+**Generate and deploy SSH keys**:
+
+```bash
+# Generate a new ED25519 keypair (recommended)
+max ssh generate-keypair prod ~/.ssh/prod_key --type ed25519
+
+# Generate RSA keypair
+max ssh generate-keypair backup ~/.ssh/backup_rsa --type rsa
+
+# Copy public key to server (enables passwordless login)
+max ssh copy-public-key prod
+```
+
+**Manage targets**:
+
+```bash
+max ssh list-targets           # Show all saved targets in table format
+max ssh remove-target old-server  # Remove a target
+```
+
+**Complete workflow example**:
+
+```bash
+# 1. Generate keypair
+max ssh generate-keypair prod ~/.ssh/prod_key
+
+# 2. Add target with the new key
+max ssh add-target prod ubuntu 192.168.1.100 -k ~/.ssh/prod_key
+
+# 3. Copy public key to server (enter password when prompted)
+max ssh copy-public-key prod
+
+# 4. Connect without password
+max ssh connect prod
+```
+
+**Security features**:
+
+- SSH targets stored in `~/.config/maxcli/ssh_targets.json` with 600 permissions
+- Private keys validated before adding targets
+- Keys generated with secure permissions (600 for private, 644 for public)
+- Interactive target selection with fallback modes
+
+### SSH Key Backup & Restore
+
+MaxCLI provides secure backup and restore capabilities for your SSH keys and target configurations using GPG encryption.
+
+**Export SSH keys to encrypted backup**:
+
+```bash
+# Interactive selection and backup
+max ssh export-keys
+```
+
+The export process:
+
+1. **Interactive Selection**: Choose which SSH private keys to backup from `~/.ssh/`
+2. **Automatic Inclusion**: Corresponding public keys (.pub) are included automatically
+3. **Configuration Backup**: SSH target profiles from MaxCLI are included
+4. **Secure Encryption**: GPG symmetric encryption with AES256 cipher
+5. **Safe Cleanup**: Unencrypted temporary files are automatically removed
+
+**Import SSH keys from encrypted backup**:
+
+```bash
+# Interactive backup file selection and restore
+max ssh import-keys
+```
+
+The import process:
+
+1. **File Selection**: Choose backup file from home directory or enter custom path
+2. **Secure Decryption**: GPG decryption with interactive password prompt
+3. **Validation**: Backup contents are validated before extraction
+4. **Proper Permissions**: Private keys get 600, public keys get 644 permissions
+5. **Directory Creation**: Creates `~/.ssh/` and `~/.config/maxcli/` if needed
+
+**Complete backup workflow example**:
+
+```bash
+# 1. Export current SSH setup
+max ssh export-keys
+# Select keys: id_rsa, id_ed25519, work_key
+# GPG prompts for encryption password
+# ✅ Backup saved to ~/ssh_keys_backup.tar.gz.gpg
+
+# 2. On new machine, import the backup
+max ssh import-keys
+# Select backup file: ssh_keys_backup.tar.gz.gpg
+# GPG prompts for decryption password
+# Confirm extraction: y
+# ✅ SSH keys restored to ~/.ssh/
+```
+
+**Security features**:
+
+- **AES256 Encryption**: Strong symmetric encryption via GPG
+- **Secure Password Handling**: GPG handles all password prompting directly
+- **Secure Permissions**: Automatic 600/644 permission setting
+- **Clean Temporary Files**: No unencrypted data left on disk
+- **Fail-Safe Cleanup**: Unencrypted tarballs are always deleted, even if encryption fails
+- **Backup Validation**: Contents verified before extraction
+
+**Backup contents**:
+
+- Selected SSH private keys from `~/.ssh/`
+- Corresponding public keys (.pub files) if they exist
+- SSH target profiles from `~/.config/maxcli/ssh_targets.json`
+- Compressed and encrypted in a single portable file
+
 ## Configuration
 
 Configuration is stored in `~/.config/maxcli/config.json` and includes:
@@ -152,6 +302,8 @@ Configuration is stored in `~/.config/maxcli/config.json` and includes:
 		"name": "Your Name",
 		"email": "your.email@example.com"
 	},
+	"coolify_api_key": "your_coolify_api_key",
+	"coolify_instance_url": "https://coolify.example.com",
 	"dotfiles_repo": "https://github.com/yourusername/dotfiles.git",
 	"gcp_quota_projects": {
 		"altekai": "altekai-project-id",
@@ -171,6 +323,7 @@ maxcli/
 │   ├── config.py           # Configuration management
 │   ├── interactive.py      # Interactive utilities
 │   ├── system.py           # System utilities
+│   ├── ssh_manager.py      # SSH connection profile management
 │   └── commands/           # Command modules
 │       ├── __init__.py
 │       ├── gcp.py          # Google Cloud Platform commands
@@ -261,3 +414,4 @@ chmod +x main.py
 - Docker commands: `docker` CLI
 - Kubernetes commands: `kubectl` CLI
 - Setup commands: `brew` (macOS) or equivalent package manager
+- SSH commands: `ssh`, `ssh-keygen`, `ssh-copy-id` (OpenSSH client tools)
