@@ -115,6 +115,21 @@ def init_config(args):
         required=False
     )
     
+    # Coolify API key (optional)
+    print("\nCoolify API key (optional):")
+    print("This will be used for managing Coolify resources.")
+    config['coolify_api_key'] = prompt_for_config_value(
+        "Coolify API key (leave empty to skip)",
+        config.get('coolify_api_key'),
+        required=False
+    )
+    
+    config['coolify_instance_url'] = prompt_for_config_value(
+        "Coolify instance URL (e.g., https://coolify.example.com, leave empty to skip)",
+        config.get('coolify_instance_url'),
+        required=False
+    )
+    
     # GCP project mappings (optional)
     print("\nGoogle Cloud Platform project mappings (optional):")
     print("You can configure custom project mappings for different gcloud configs.")

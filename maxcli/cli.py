@@ -8,6 +8,12 @@ from .commands.docker import docker_clean, docker_tidy
 from .commands.kubernetes import kctx
 from .commands.setup import setup, minimal_setup, dev_full_setup, apps_setup
 from .commands.misc import backup_db, deploy_app
+from .commands.coolify import (
+    coolify_health, coolify_services, coolify_applications, coolify_servers,
+    coolify_resources, coolify_start_service, coolify_stop_service,
+    coolify_restart_service, coolify_status, coolify_start_application,
+    coolify_stop_application, coolify_restart_application, coolify_deploy_application
+)
 
 def add_setup_subcommands(subparsers):
     """Add setup subcommands to the argument parser."""
@@ -135,6 +141,352 @@ Interactive mode provides:
     apps_parser.add_argument('--interactive', action='store_true', help='Interactive app selection')
     apps_parser.set_defaults(func=apps_setup)
 
+def add_coolify_subcommands(subparsers):
+    """Add Coolify management subcommands to the argument parser."""
+    coolify_parser = subparsers.add_parser(
+        'coolify', 
+        help='Manage Coolify instance through API',
+        description="""
+Manage your Coolify instance through its REST API.
+
+This command provides comprehensive management of your Coolify resources including:
+- Health monitoring and status overview
+- Services, applications, and databases management
+- Server monitoring and resource viewing
+- Service lifecycle operations (start/stop/restart)
+
+All commands use the API key and instance URL configured during 'max init'.
+The API provides real-time information about your deployments and infrastructure.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify status              # Overall status overview
+  max coolify health              # Check instance health
+  max coolify services            # List all services
+  max coolify applications        # List all applications  
+  max coolify servers             # List all servers
+  max coolify start-service <uuid> # Start a specific service
+  max coolify stop-service <uuid>  # Stop a specific service
+        """
+    )
+    coolify_subparsers = coolify_parser.add_subparsers(
+        title="Coolify Commands", 
+        dest="coolify_command",
+        description="Choose a Coolify management operation",
+        metavar="<command>"
+    )
+    coolify_parser.set_defaults(func=coolify_status)
+
+    # Health check command
+    health_parser = coolify_subparsers.add_parser(
+        'health', 
+        help='Check Coolify instance health',
+        description="""
+Check the health status of your Coolify instance.
+
+This command calls the /health endpoint to verify that your Coolify instance
+is running and accessible. It's useful for monitoring and troubleshooting
+connectivity issues.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify health              # Check if Coolify is healthy
+        """
+    )
+    health_parser.set_defaults(func=coolify_health)
+
+    # Status overview command  
+    status_parser = coolify_subparsers.add_parser(
+        'status', 
+        help='Show overall Coolify status with resource summary',
+        description="""
+Display a comprehensive status overview of your Coolify instance.
+
+This command provides a high-level summary including:
+- Instance health status
+- Count of applications by status (running/stopped/other)
+- Count of services by status
+- Count of servers and their reachability
+- Count of databases by status
+
+Perfect for getting a quick overview of your entire infrastructure.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify status              # Show status overview (default command)
+        """
+    )
+    status_parser.set_defaults(func=coolify_status)
+
+    # Services command
+    services_parser = coolify_subparsers.add_parser(
+        'services', 
+        help='List all services and their status',
+        description="""
+List all services deployed in your Coolify instance.
+
+This command shows:
+- Service names and current status
+- Which server each service is deployed to
+- Service UUIDs (needed for start/stop/restart operations)
+- Detailed status information with visual indicators
+
+Services include one-click services like databases, monitoring tools,
+and other containerized applications managed by Coolify.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify services            # List all services with status
+        """
+    )
+    services_parser.set_defaults(func=coolify_services)
+
+    # Applications command
+    apps_parser = coolify_subparsers.add_parser(
+        'applications', 
+        help='List all applications and their status', 
+        description="""
+List all applications deployed in your Coolify instance.
+
+This command shows:
+- Application names and current status
+- Which server each application is deployed to
+- Git repository information
+- Application UUIDs for management operations
+- Detailed status information with visual indicators
+
+Applications include web apps, APIs, static sites, and other
+custom deployments managed through Coolify.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify applications        # List all applications with status
+        """
+    )
+    apps_parser.set_defaults(func=coolify_applications)
+
+    # Servers command
+    servers_parser = coolify_subparsers.add_parser(
+        'servers', 
+        help='List all servers and their status',
+        description="""
+List all servers connected to your Coolify instance.
+
+This command shows:
+- Server names and reachability status
+- IP addresses and connection information
+- Server UUIDs for management operations
+- Visual indicators for server health
+
+Servers are the physical or virtual machines where your applications
+and services are deployed. Monitoring their status is crucial for
+maintaining a healthy infrastructure.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify servers             # List all servers with status
+        """
+    )
+    servers_parser.set_defaults(func=coolify_servers)
+
+    # Resources command
+    resources_parser = coolify_subparsers.add_parser(
+        'resources', 
+        help='List all resources (combined view)',
+        description="""
+List all resources in your Coolify instance with a combined view.
+
+This command provides a unified view of all resources grouped by type:
+- Applications (web apps, APIs, static sites)
+- Services (databases, monitoring tools, etc.)
+- Servers (physical/virtual machines)
+- Other resource types
+
+Perfect for getting an organized overview of your entire infrastructure
+with resources categorized for easy management.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max coolify resources           # Show all resources grouped by type
+        """
+    )
+    resources_parser.set_defaults(func=coolify_resources)
+
+    # Start service command
+    start_parser = coolify_subparsers.add_parser(
+        'start-service', 
+        help='Start a service by UUID',
+        description="""
+Start a stopped service using its UUID.
+
+This command sends a start request to the specified service. The service
+must be in a stopped or exited state to be started. You can get the UUID
+from the 'max coolify services' command.
+
+The command will send the start request and confirm receipt, but the actual
+startup process may take some time depending on the service.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify start-service abc123-def456-ghi789  # Start service by UUID
+  max coolify services                            # Get UUIDs first
+        """
+    )
+    start_parser.add_argument('uuid', help='Service UUID to start')
+    start_parser.set_defaults(func=coolify_start_service)
+
+    # Stop service command
+    stop_parser = coolify_subparsers.add_parser(
+        'stop-service', 
+        help='Stop a service by UUID',
+        description="""
+Stop a running service using its UUID.
+
+This command sends a stop request to the specified service. The service
+must be in a running state to be stopped. You can get the UUID from the
+'max coolify services' command.
+
+The command will send the stop request and confirm receipt, but the actual
+shutdown process may take some time depending on the service.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify stop-service abc123-def456-ghi789   # Stop service by UUID
+  max coolify services                            # Get UUIDs first
+        """
+    )
+    stop_parser.add_argument('uuid', help='Service UUID to stop')
+    stop_parser.set_defaults(func=coolify_stop_service)
+
+    # Restart service command
+    restart_parser = coolify_subparsers.add_parser(
+        'restart-service', 
+        help='Restart a service by UUID',
+        description="""
+Restart a service using its UUID.
+
+This command sends a restart request to the specified service. This is
+equivalent to stopping and then starting the service. You can get the UUID
+from the 'max coolify services' command.
+
+The command will send the restart request and confirm receipt, but the actual
+restart process may take some time depending on the service.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify restart-service abc123-def456-ghi789 # Restart service by UUID
+  max coolify services                             # Get UUIDs first
+        """
+    )
+    restart_parser.add_argument('uuid', help='Service UUID to restart')
+    restart_parser.set_defaults(func=coolify_restart_service)
+
+    # Start application command
+    start_app_parser = coolify_subparsers.add_parser(
+        'start-application', 
+        help='Start an application by UUID',
+        description="""
+Start a stopped application using its UUID.
+
+This command sends a start request to the specified application. The application
+must be in a stopped or exited state to be started. You can get the UUID
+from the 'max coolify applications' command.
+
+The command will send the start request and confirm receipt, but the actual
+startup process may take some time depending on the application.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify start-application abc123-def456-ghi789  # Start application by UUID
+  max coolify applications                            # Get UUIDs first
+        """
+    )
+    start_app_parser.add_argument('uuid', help='Application UUID to start')
+    start_app_parser.set_defaults(func=coolify_start_application)
+
+    # Stop application command
+    stop_app_parser = coolify_subparsers.add_parser(
+        'stop-application', 
+        help='Stop an application by UUID',
+        description="""
+Stop a running application using its UUID.
+
+This command sends a stop request to the specified application. The application
+must be in a running state to be stopped. You can get the UUID from the
+'max coolify applications' command.
+
+The command will send the stop request and confirm receipt, but the actual
+shutdown process may take some time depending on the application.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify stop-application abc123-def456-ghi789   # Stop application by UUID
+  max coolify applications                            # Get UUIDs first
+        """
+    )
+    stop_app_parser.add_argument('uuid', help='Application UUID to stop')
+    stop_app_parser.set_defaults(func=coolify_stop_application)
+
+    # Restart application command
+    restart_app_parser = coolify_subparsers.add_parser(
+        'restart-application', 
+        help='Restart an application by UUID',
+        description="""
+Restart an application using its UUID.
+
+This command sends a restart request to the specified application. This is
+equivalent to stopping and then starting the application. You can get the UUID
+from the 'max coolify applications' command.
+
+The command will send the restart request and confirm receipt, but the actual
+restart process may take some time depending on the application.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify restart-application abc123-def456-ghi789 # Restart application by UUID
+  max coolify applications                             # Get UUIDs first
+        """
+    )
+    restart_app_parser.add_argument('uuid', help='Application UUID to restart')
+    restart_app_parser.set_defaults(func=coolify_restart_application)
+
+    # Deploy application command
+    deploy_app_parser = coolify_subparsers.add_parser(
+        'deploy-application', 
+        help='Deploy an application by UUID',
+        description="""
+Deploy an application using its UUID.
+
+This command triggers a new deployment of the specified application. This will
+pull the latest code from the configured repository, build the application,
+and deploy it. You can get the UUID from the 'max coolify applications' command.
+
+The command will send the deployment request and confirm receipt, but the actual
+deployment process may take several minutes depending on the application complexity.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max coolify deploy-application abc123-def456-ghi789  # Deploy application by UUID
+  max coolify applications                             # Get UUIDs first
+        """
+    )
+    deploy_app_parser.add_argument('uuid', help='Application UUID to deploy')
+    deploy_app_parser.set_defaults(func=coolify_deploy_application)
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -153,6 +505,9 @@ Examples:
   max setup minimal               # Basic development environment setup
   max setup dev-full              # Complete development environment
   max setup apps                  # Install GUI applications
+  max coolify status              # Check Coolify instance status overview
+  max coolify services            # List all services and their status
+  max coolify applications        # List all applications and their status
         """
     )
     subparsers = parser.add_subparsers(
@@ -396,6 +751,9 @@ Example:
 
     # Add setup subcommands for laptop/dev environment setup
     add_setup_subcommands(subparsers)
+
+    # Add Coolify subcommands
+    add_coolify_subcommands(subparsers)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):

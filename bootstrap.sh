@@ -86,24 +86,48 @@ chmod +x ~/bin/max
 mkdir -p ~/.local/lib/python
 cp -r "$SCRIPT_DIR/maxcli" ~/.local/lib/python/
 
-# Create a wrapper script that sets up the Python path correctly
+# Create a wrapper script that always uses the maxcli virtual environment
 cat > ~/bin/max << 'EOF'
-#!/usr/bin/env python3
-"""
-MaxCLI wrapper script that ensures the package can be found.
-"""
+#!/bin/bash
+# MaxCLI wrapper script that ensures the correct Python environment is used.
+# This script always uses the maxcli virtual environment created during bootstrap.
+
+# Path to the maxcli virtual environment
+MAXCLI_VENV="$HOME/.venvs/maxcli"
+MAXCLI_PYTHON="$MAXCLI_VENV/bin/python"
+
+# Check if the maxcli virtual environment exists
+if [[ ! -f "$MAXCLI_PYTHON" ]]; then
+    echo "❌ Error: MaxCLI virtual environment not found at $MAXCLI_VENV"
+    echo "💡 Please run the bootstrap script to set up the environment:"
+    echo "   ./bootstrap.sh"
+    exit 1
+fi
+
+# Check if questionary is installed in the virtual environment
+if ! "$MAXCLI_PYTHON" -c "import questionary" 2>/dev/null; then
+    echo "⚠️  Warning: questionary not found in maxcli environment"
+    echo "💡 Please run the bootstrap script again to reinstall dependencies:"
+    echo "   ./bootstrap.sh"
+fi
+
+# Set up the Python path for maxcli package
+export PYTHONPATH="$HOME/.local/lib/python:$PYTHONPATH"
+
+# Execute the main CLI with the maxcli virtual environment Python
+exec "$MAXCLI_PYTHON" -c "
 import sys
 import os
 
-# Add the maxcli package to Python path
-maxcli_path = os.path.expanduser("~/.local/lib/python")
+# Ensure maxcli package can be found
+maxcli_path = os.path.expanduser('~/.local/lib/python')
 if maxcli_path not in sys.path:
     sys.path.insert(0, maxcli_path)
 
 # Import and run the CLI
-if __name__ == '__main__':
-    from maxcli.cli import main
-    main()
+from maxcli.cli import main
+main()
+" "$@"
 EOF
 
 chmod +x ~/bin/max
