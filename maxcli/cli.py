@@ -748,8 +748,20 @@ with 'ssh-export-keys':
 - Interactive selection of backup file (or manual path entry)
 - GPG decryption with interactive password prompt
 - Validation of backup contents before extraction
+- Smart conflict detection for existing files
+- User choice for handling conflicts (overwrite/skip/individual/cancel)
 - Restoration of keys to ~/.ssh/ with proper permissions
 - Restoration of SSH target profiles to MaxCLI configuration
+
+CONFLICT HANDLING:
+When importing keys that already exist on your system, you'll be prompted with options:
+1. Overwrite all existing files with backup versions
+2. Skip all conflicting files (keep your existing versions)
+3. Ask individually for each conflicting file
+4. Cancel the import process
+
+For individual conflicts, you'll see file details (size, modification date) to help
+you decide whether to keep the existing file or import from the backup.
 
 SECURITY FEATURES:
 - GPG handles password prompting securely
@@ -757,21 +769,34 @@ SECURITY FEATURES:
 - Directory creation with secure permissions (700)
 - Validation of backup structure before extraction
 - Automatic cleanup of temporary decrypted files
-
-Existing files with the same names will be overwritten during import.
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   max ssh import-keys             # Interactive backup file selection
-  max ssh import-keys             # Enter custom backup file path
 
 Typical workflow:
   1. Select backup file (from home directory or custom path)
   2. GPG prompts for decryption password
   3. Review backup contents and confirm extraction
-  4. Keys restored to ~/.ssh/ with proper permissions
-  5. SSH target profiles restored to MaxCLI configuration
+  4. Handle any file conflicts (if existing keys found):
+     - See list of conflicting files with details
+     - Choose global strategy (overwrite/skip/individual/cancel)
+     - For individual mode: decide per file with file information
+  5. Keys restored to ~/.ssh/ with proper permissions
+  6. SSH target profiles restored to MaxCLI configuration
+  7. Summary of extracted vs. skipped files
+
+Example conflict resolution:
+  ⚠️  Found 2 conflicting files:
+    • id_rsa (size: 2,459 bytes, modified: 2024-01-15 14:30:22)
+    • id_rsa.pub (size: 564 bytes, modified: 2024-01-15 14:30:22)
+  
+  How would you like to handle these conflicts?
+    1. Overwrite all existing files with backup versions
+    2. Skip all conflicting files (keep existing)  
+    3. Ask individually for each conflicting file
+    4. Cancel import
         """
     )
     import_parser.set_defaults(func=handle_import_ssh_keys)
