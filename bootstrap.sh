@@ -55,8 +55,8 @@ fi
 
 # Install Python and pipx
 echo ""
-echo "🐍 Installing Python and pipx..."
-brew install python pipx
+echo "🐍 Installing Python, pipx, and GPG..."
+brew install python pipx gnupg gnupg2
 
 # Ensure pipx is in PATH
 pipx ensurepath

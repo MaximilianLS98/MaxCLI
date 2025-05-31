@@ -6,8 +6,12 @@ A modular command-line utility for development operations, environment setup, an
 
 - **Google Cloud Platform Management**: Switch between gcloud configurations with ADC support
 - **Docker Operations**: Clean up Docker resources with both aggressive and gentle options
+- **SSH Management**: Add, remove, list and connect to SSH targets with key-based authentication and saved profiles
+- **SSH import/export**: Import and export SSH keys and target profiles
+- **Coolify Management**: Get status of your coolify instance and start/stop resources
 - **Kubernetes**: Quick context switching
 - **Development Environment Setup**: Automated setup for new machines with different profiles
+- **App Installation**: Pick and choose GUI applications to install, like Cursor, slack etc.
 - **Interactive Prompts**: User-friendly menus and confirmations
 - **Configuration Management**: Personal settings with JSON-based storage
 - **Extensible Architecture**: Easy to add new commands and modules
@@ -25,8 +29,8 @@ A modular command-line utility for development operations, environment setup, an
 
     The bootstrap script automatically handles:
 
-    - Installing system dependencies (Homebrew, Python, pipx)
-    - Creating a virtual environment
+    - Installing system dependencies (Homebrew, Python, pipx, GPG)
+    - Creating a python virtual environment
     - Installing Python dependencies
     - Setting up the MaxCLI package
     - Creating the `max` command in your PATH
@@ -79,12 +83,12 @@ A modular command-line utility for development operations, environment setup, an
 
 - `max docker-clean` - Aggressive Docker cleanup (removes everything unused)
 - `max docker-tidy` - Gentle Docker cleanup (preserves recent items)
-- `max kctx <context>` - Switch Kubernetes context
+- `max kctx <context>` - Switch Kubernetes context WIP (not working)
 
 ### Database & Deployment
 
-- `max backup-db` - Backup PostgreSQL database
-- `max deploy-app` - Deploy application (placeholder for your logic)
+- `max backup-db` - Backup PostgreSQL database WIP (not working)
+- `max deploy-app` - Deploy application WIP (not working)
 
 ## Detailed Usage
 
