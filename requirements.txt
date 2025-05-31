@@ -1,0 +1,2 @@
+questionary>=1.10.0
+argcomplete>=2.0.0

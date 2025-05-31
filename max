@@ -1,0 +1,1138 @@
+#!/Users/maximilian/.venvs/maxcli/bin/python
+import argparse
+import subprocess
+import sys
+import os
+import shutil
+import json
+from pathlib import Path
+
+# Configuration management
+CONFIG_DIR = Path.home() / ".config" / "maxcli"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+
+def ensure_config_dir():
+    """Ensure the config directory exists."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+def load_config():
+    """Load configuration from file, return empty dict if file doesn't exist."""
+    if CONFIG_FILE.exists():
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"⚠️ Warning: Could not load config file: {e}")
+            return {}
+    return {}
+
+def save_config(config):
+    """Save configuration to file."""
+    ensure_config_dir()
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except IOError as e:
+        print(f"❌ Error saving config: {e}")
+        return False
+
+def is_initialized():
+    """Check if the CLI has been initialized with user configuration."""
+    config = load_config()
+    required_fields = ['git_name', 'git_email']
+    return all(field in config and config[field] for field in required_fields)
+
+def prompt_for_config_value(prompt, current_value=None, required=True):
+    """Prompt user for a configuration value with optional current value display."""
+    if current_value:
+        full_prompt = f"{prompt} (current: {current_value}): "
+    else:
+        full_prompt = f"{prompt}: "
+    
+    while True:
+        value = input(full_prompt).strip()
+        
+        # If they pressed enter and there's a current value, keep it
+        if not value and current_value:
+            return current_value
+        
+        # If they provided a value, use it
+        if value:
+            return value
+        
+        # If no value and it's required, ask again
+        if required:
+            print("❌ This field is required. Please provide a value.")
+        else:
+            return ""
+
+def init_config(args):
+    """Initialize or update user configuration."""
+    print("🚀 MaxCLI Configuration Setup")
+    print("=" * 40)
+    
+    # Load existing config if it exists
+    config = load_config()
+    
+    if config and not args.force:
+        print("✅ Configuration already exists!")
+        print(f"📁 Config location: {CONFIG_FILE}")
+        print("\nCurrent configuration:")
+        for key, value in config.items():
+            print(f"  {key}: {value}")
+        
+        update = input("\nDo you want to update your configuration? (y/n): ").lower().startswith('y')
+        if not update:
+            print("Configuration unchanged.")
+            return
+        print()
+    
+    print("Please provide your personal details for git configuration and dotfiles:")
+    print()
+    
+    # Git configuration
+    config['git_name'] = prompt_for_config_value(
+        "Git username (for git config --global user.name)",
+        config.get('git_name')
+    )
+    
+    config['git_email'] = prompt_for_config_value(
+        "Git email (for git config --global user.email)",
+        config.get('git_email')
+    )
+    
+    # Dotfiles repository (optional)
+    print("\nDotfiles repository (optional):")
+    config['dotfiles_repo'] = prompt_for_config_value(
+        "Dotfiles git repository URL (leave empty to skip)",
+        config.get('dotfiles_repo'),
+        required=False
+    )
+    
+    # GCP project mappings (optional)
+    print("\nGoogle Cloud Platform project mappings (optional):")
+    print("You can configure custom project mappings for different gcloud configs.")
+    
+    # Load existing quota project mappings or create new ones
+    if 'quota_project_mappings' not in config:
+        config['quota_project_mappings'] = {}
+    
+    manage_mappings = input("Do you want to configure GCP project mappings now? (y/n): ").lower().startswith('y')
+    if manage_mappings:
+        print("\nEnter your GCP project mappings (config_name -> project_id):")
+        print("Press Enter with empty config name to finish.")
+        
+        while True:
+            config_name = input("Config name (empty to finish): ").strip()
+            if not config_name:
+                break
+                
+            project_id = prompt_for_config_value(
+                f"Project ID for '{config_name}'",
+                config['quota_project_mappings'].get(config_name)
+            )
+            config['quota_project_mappings'][config_name] = project_id
+    
+    # Save configuration
+    if save_config(config):
+        print(f"\n✅ Configuration saved to: {CONFIG_FILE}")
+        
+        # ASCII Art for successful configuration
+        print("\n" + "="*60)
+        print("""
+   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ 
+  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝ 
+  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║  ███╗
+  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║   ██║
+  ╚██████╗╚██████╔╝██║ ╚████║██║     ██║╚██████╔╝
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝ 
+                                                   
+     ██████╗ ██████╗ ███╗   ███╗██████╗ ██╗     ███████╗████████╗███████╗██╗
+    ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██║     ██╔════╝╚══██╔══╝██╔════╝██║
+    ██║     ██║   ██║██╔████╔██║██████╔╝██║     █████╗     ██║   █████╗  ██║
+    ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██║     ██╔══╝     ██║   ██╔══╝  ╚═╝
+    ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗███████╗   ██║   ███████╗██╗
+     ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝╚══════╝   ╚═╝   ╚══════╝╚═╝
+        """)
+        print("="*60)
+        print("\n🎉 MaxCLI is now personalized and ready to use!")
+        print("🚀 Your development workflow just got supercharged!")
+        print(f"\n📁 Configuration saved to: {CONFIG_FILE}")
+        print("\n💡 You can update this configuration anytime with: max init --force")
+        print("\n🎯 Next steps:")
+        print("   • Try: max setup dev-full")
+        print("   • Or:  max switch-config")
+        print("   • Or:  max --help")
+        
+        # Footer box
+        print("\n" + "┌" + "─"*58 + "┐")
+        print("│" + " "*20 + "Happy coding! 🎉" + " "*20 + "│")
+        print("└" + "─"*58 + "┘")
+        
+    else:
+        print("\n❌ Failed to save configuration.")
+        sys.exit(1)
+
+def check_initialization():
+    """Check if CLI is initialized, prompt user if not."""
+    if not is_initialized():
+        print("🔧 MaxCLI needs to be initialized with your personal configuration.")
+        print("This is a one-time setup to personalize the tool for your use.")
+        print()
+        
+        if input("Initialize now? (y/n): ").lower().startswith('y'):
+            print()
+            # Create a mock args object for init_config
+            class MockArgs:
+                force = False
+            init_config(MockArgs())
+        else:
+            print("❌ Initialization cancelled. Some features may not work correctly.")
+            print("💡 Run 'max init' when you're ready to configure the tool.")
+            sys.exit(1)
+
+def get_config_value(key, default=None):
+    """Get a configuration value, checking initialization first if needed."""
+    config = load_config()
+    return config.get(key, default)
+
+def get_quota_project_mappings():
+    """Get the quota project mappings from config."""
+    config = load_config()
+    return config.get('quota_project_mappings', {})
+
+def get_available_configs():
+    """Get list of available gcloud configurations with ADC files."""
+    configs = []
+    adc_dir = os.path.expanduser("~/.config/gcloud")
+    if os.path.exists(adc_dir):
+        for f in os.listdir(adc_dir):
+            if f.startswith("adc_") and f.endswith(".json"):
+                configs.append(f[4:-5])  # Remove "adc_" prefix and ".json" suffix
+    return sorted(configs)
+
+def interactive_config_selection():
+    """Show interactive menu for config selection."""
+    configs = get_available_configs()
+    
+    if not configs:
+        print("❌ No configurations with ADC files found.")
+        print("💡 Create a new configuration with: max create-config <name>")
+        sys.exit(1)
+    
+    try:
+        # Try to use questionary for a nice interactive experience
+        import questionary
+        
+        selected = questionary.select(
+            "Select a gcloud configuration:",
+            choices=configs,
+            style=questionary.Style([
+                ('question', 'bold'),
+                ('highlighted', 'bold bg:#3498db fg:#ffffff'),
+                ('pointer', 'bold'),
+                ('answer', 'bold fg:#2ecc71')
+            ])
+        ).ask()
+        
+        if selected is None:  # User cancelled (Ctrl+C)
+            print("\n❌ Configuration switch cancelled.")
+            sys.exit(0)
+            
+        return selected
+        
+    except ImportError:
+        # Fallback to simple numbered menu if questionary is not available
+        print("\n📋 Available configurations:")
+        for i, config in enumerate(configs, 1):
+            print(f"  {i}. {config}")
+        
+        while True:
+            try:
+                choice = input(f"\nSelect configuration (1-{len(configs)}) or 'q' to quit: ").strip()
+                
+                if choice.lower() == 'q':
+                    print("❌ Configuration switch cancelled.")
+                    sys.exit(0)
+                    
+                index = int(choice) - 1
+                if 0 <= index < len(configs):
+                    return configs[index]
+                else:
+                    print(f"❌ Please enter a number between 1 and {len(configs)}")
+                    
+            except (ValueError, KeyboardInterrupt):
+                print("\n❌ Configuration switch cancelled.")
+                sys.exit(0)
+
+def switch_config(args):
+    config_name = args.name
+    
+    # If no config name provided, show interactive selection
+    if not config_name:
+        config_name = interactive_config_selection()
+    
+    print(f"Switching gcloud config to '{config_name}'...")
+    subprocess.run(["gcloud", "config", "configurations", "activate", config_name], check=True)
+
+    adc_file = os.path.expanduser(f"~/.config/gcloud/adc_{config_name}.json")
+    dest_adc = os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
+
+    if os.path.exists(adc_file):
+        subprocess.run(["cp", adc_file, dest_adc], check=True)
+        print(f"Switched ADC credentials for config '{config_name}'.")
+
+        # Use config-based quota project mappings
+        quota_project_mappings = get_quota_project_mappings()
+        quota_project = quota_project_mappings.get(config_name)
+
+        if quota_project:
+            print(f"Setting quota project to '{quota_project}'...")
+            subprocess.run(["gcloud", "auth", "application-default", "set-quota-project", quota_project], check=True)
+        else:
+            print(f"No quota project mapping for '{config_name}'.")
+    else:
+        print(f"ADC file for '{config_name}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+def create_config(args):
+    """
+    Create a new gcloud configuration with proper authentication and ADC setup.
+    
+    This function performs the following steps:
+    1. Creates a new gcloud configuration
+    2. Activates the new configuration
+    3. Prompts user to authenticate with Google account
+    4. Sets up application default credentials
+    5. Copies ADC file for future use with switch-config
+    6. Handles quota project setup
+    """
+    config_name = args.name
+    print(f"Creating new gcloud configuration '{config_name}'...")
+    
+    try:
+        # Step 1: Create new configuration
+        print("Creating gcloud configuration...")
+        subprocess.run(["gcloud", "config", "configurations", "create", config_name], check=True)
+        
+        # Step 2: Activate the new configuration
+        print(f"Activating configuration '{config_name}'...")
+        subprocess.run(["gcloud", "config", "configurations", "activate", config_name], check=True)
+        
+        # Step 3: Authenticate with Google account
+        print("Please authenticate with your Google account...")
+        subprocess.run(["gcloud", "auth", "login"], check=True)
+        
+        # Step 4: Set up application default credentials
+        print("Setting up application default credentials...")
+        subprocess.run(["gcloud", "auth", "application-default", "login"], check=True)
+        
+        # Step 5: Copy ADC file for future switching
+        source_adc = os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
+        dest_adc = os.path.expanduser(f"~/.config/gcloud/adc_{config_name}.json")
+        
+        if os.path.exists(source_adc):
+            subprocess.run(["cp", source_adc, dest_adc], check=True)
+            print(f"ADC credentials saved for config '{config_name}'.")
+        else:
+            print("Warning: ADC file not found after authentication.", file=sys.stderr)
+            return
+        
+        # Step 6: Handle quota project setup
+        setup_quota_project(config_name)
+        
+        print(f"✅ Configuration '{config_name}' created successfully!")
+        print(f"You can now switch to this config using: max switch-config {config_name}")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error creating configuration: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def setup_quota_project(config_name):
+    """
+    Set up quota project for the given configuration.
+    
+    First checks if there's an existing mapping, otherwise prompts user
+    to enter the quota project ID.
+    """
+    # Get quota project mappings from config
+    quota_project_mappings = get_quota_project_mappings()
+    quota_project = quota_project_mappings.get(config_name)
+    
+    if quota_project:
+        print(f"Found existing quota project mapping: '{quota_project}'")
+        confirm = input(f"Use '{quota_project}' as quota project? (y/n): ").strip().lower()
+        if confirm not in ['y', 'yes']:
+            quota_project = None
+    
+    if not quota_project:
+        print("No existing quota project mapping found.")
+        quota_project = input("Enter quota project ID (or press Enter to skip): ").strip()
+    
+    if quota_project:
+        try:
+            print(f"Setting quota project to '{quota_project}'...")
+            subprocess.run([
+                "gcloud", "auth", "application-default", 
+                "set-quota-project", quota_project
+            ], check=True)
+            print(f"Quota project set to '{quota_project}'.")
+            
+            # Ask if user wants to save this mapping for future use
+            if config_name not in quota_project_mappings:
+                save_mapping = input(f"Save mapping '{config_name}' -> '{quota_project}' for future use? (y/n): ").strip().lower()
+                if save_mapping in ['y', 'yes']:
+                    # Update config with new mapping
+                    config = load_config()
+                    if 'quota_project_mappings' not in config:
+                        config['quota_project_mappings'] = {}
+                    config['quota_project_mappings'][config_name] = quota_project
+                    if save_config(config):
+                        print(f"✅ Mapping saved to configuration.")
+                    else:
+                        print(f"⚠️ Failed to save mapping to configuration.")
+                        print(f"💡 You can manually add it with: max init --force")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Failed to set quota project: {e}", file=sys.stderr)
+    else:
+        print("Skipping quota project setup.")
+
+def list_configs(_args):
+    print("Available configs with ADC files:")
+    configs = get_available_configs()
+    
+    if not configs:
+        print("  (No configurations found)")
+        print("💡 Create a new configuration with: max create-config <name>")
+    else:
+        for config in configs:
+            print(f"  {config}")
+
+def docker_clean(_args):
+    print("Cleaning up Docker system...")
+    subprocess.run(["docker", "system", "prune", "-af"], check=True)
+
+def docker_tidy(_args):
+    """
+    Perform a gentle Docker cleanup that only removes truly unused items.
+    
+    This is a safer alternative to docker-clean that preserves:
+    - All images that might be reused
+    - Recent containers (only removes containers stopped >24h ago)
+    - Volumes (never touches volumes)
+    """
+    print("Performing gentle Docker cleanup...")
+    
+    try:
+        # Remove containers that have been stopped for more than 24 hours
+        print("Removing containers stopped >24h ago...")
+        subprocess.run([
+            "docker", "container", "prune", "-f", 
+            "--filter", "until=24h"
+        ], check=True)
+        
+        # Remove only dangling images (untagged/unreferenced)
+        print("Removing dangling images...")
+        subprocess.run([
+            "docker", "image", "prune", "-f"
+        ], check=True)
+        
+        # Remove unused networks
+        print("Removing unused networks...")
+        subprocess.run([
+            "docker", "network", "prune", "-f"
+        ], check=True)
+        
+        # Remove build cache older than 7 days
+        print("Removing build cache >7 days old...")
+        subprocess.run([
+            "docker", "builder", "prune", "-f",
+            "--filter", "until=168h"  # 7 days = 168 hours
+        ], check=True)
+        
+        print("✅ Gentle Docker cleanup completed!")
+        print("💡 For aggressive cleanup, use 'max docker-clean'")
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error during Docker cleanup: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def kctx(args):
+    print(f"Switching Kubernetes context to '{args.context}'...")
+    subprocess.run(["kubectl", "config", "use-context", args.context], check=True)
+
+def backup_db(_args):
+    print("Backing up database... (this is a dummy command)")
+
+def deploy_app(_args):
+    print("Deploying app... (this is a dummy command)")
+    # Insert real deploy logic here
+
+
+# ------------- Laptop/Dev Setup Utilities -------------
+def run(cmd, check=True):
+    print(f"🔧 Running: {cmd}")
+    subprocess.run(cmd, shell=True, check=check)
+
+def is_installed(binary_name):
+    return shutil.which(binary_name) is not None
+
+def install_homebrew():
+    if not is_installed("brew"):
+        print("🍺 Homebrew not found. Installing Homebrew...")
+        run('/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"')
+    else:
+        print("✅ Homebrew is already installed.")
+
+def install_brew_packages(packages):
+    for package in packages:
+        print(f"📦 Checking {package}...")
+        if subprocess.run(f"brew list {package}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode != 0:
+            run(f"brew install {package}")
+        else:
+            print(f"✅ {package} already installed.")
+
+def install_cask_apps(apps):
+    # Map cask names to actual application names in /Applications/
+    app_name_mapping = {
+        "visual-studio-code": "Visual Studio Code.app",
+        "cursor": "Cursor.app", 
+        "ghostty": "Ghostty.app",
+        "slack": "Slack.app",
+        "google-chrome": "Google Chrome.app",
+        "arc": "Arc.app",
+        "postman": "Postman.app",
+        "docker": "Docker.app"
+    }
+    
+    for app in apps:
+        print(f"🖥️ Checking {app}...")
+        
+        # Check if app exists in /Applications/ (regardless of install method)
+        app_name = app_name_mapping.get(app, f"{app.title()}.app")
+        app_path = Path("/Applications").joinpath(app_name)
+        
+        if app_path.exists():
+            print(f"✅ {app} already installed (found at {app_path}).")
+            continue
+            
+        # Check if installed via Homebrew cask
+        brew_check = subprocess.run(
+            f"brew list --cask {app}", 
+            shell=True, 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL
+        )
+        
+        if brew_check.returncode == 0:
+            print(f"✅ {app} already installed via Homebrew.")
+            continue
+            
+        # App not found, install via Homebrew
+        try:
+            run(f"brew install --cask {app}")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️ Failed to install {app}: {e}")
+            print(f"💡 You may need to install {app} manually if Homebrew cask is not available.")
+
+def install_ohmyzsh():
+    if not Path.home().joinpath(".oh-my-zsh").exists():
+        print("🧰 Installing Oh My Zsh...")
+        run('sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"', check=False)
+    else:
+        print("✅ Oh My Zsh already installed.")
+
+def setup_git_config():
+    """Setup git configuration using values from config file."""
+    check_initialization()
+    
+    git_name = get_config_value('git_name')
+    git_email = get_config_value('git_email')
+    
+    if git_name and git_email:
+        run(f'git config --global user.name "{git_name}"')
+        run(f'git config --global user.email "{git_email}"')
+        print(f"✅ Git configured for {git_name} <{git_email}>")
+    else:
+        print("⚠️ Git name/email not configured. Run 'max init' to set up.")
+
+def clone_dotfiles():
+    """Clone dotfiles repository if configured."""
+    dotfiles_repo = get_config_value('dotfiles_repo')
+    
+    if not dotfiles_repo:
+        print("💡 No dotfiles repository configured. Skipping...")
+        print("   You can add one with: max init --force")
+        return
+    
+    dotfiles_path = Path.home().joinpath("dotfiles")
+    if not dotfiles_path.exists():
+        print(f"📂 Cloning dotfiles from {dotfiles_repo}...")
+        run(f"git clone {dotfiles_repo} {dotfiles_path}")
+    else:
+        print("✅ Dotfiles already cloned.")
+        
+    # Copy common dotfiles if they exist
+    for dotfile in ['.zshrc', '.gitconfig']:
+        source = dotfiles_path / dotfile
+        dest = Path.home() / dotfile
+        if source.exists():
+            run(f"cp {source} {dest}", check=False)
+
+def install_pipx_tools():
+    if not is_installed("pipx"):
+        run("brew install pipx")
+        run("pipx ensurepath")
+    else:
+        print("✅ pipx already installed.")
+    run("pipx install argcomplete")
+    run("pipx install questionary", check=False)  # Optional, for interactive CLI experience
+
+def minimal_setup(_args):
+    install_homebrew()
+    install_brew_packages(["git", "zsh", "wget", "htop"])
+    install_ohmyzsh()
+    setup_git_config()
+    print("✅ Minimal setup completed.")
+
+def dev_full_setup(_args):
+    check_initialization()
+    
+    install_homebrew()
+    install_brew_packages([
+        "git", "node", "nvm", "python", "docker", "kubectl",
+        "awscli", "terraform", "google-cloud-sdk", "tmux"
+    ])
+    install_ohmyzsh()
+    install_pipx_tools()
+    setup_git_config()
+    clone_dotfiles()
+    print("✅ Dev Full setup completed.")
+
+def interactive_app_selection():
+    """Show interactive menu for app selection."""
+    # Available apps with descriptions
+    available_apps = [
+        ("visual-studio-code", "Visual Studio Code - Popular code editor"),
+        ("cursor", "Cursor - AI-powered code editor"),
+        ("ghostty", "Ghostty - Modern GPU-accelerated terminal"),
+        ("slack", "Slack - Team communication"),
+        ("google-chrome", "Google Chrome - Web browser"),
+        ("arc", "Arc Browser - Modern web browser"),
+        ("postman", "Postman - API testing tool"),
+        ("docker", "Docker Desktop - Container platform")
+    ]
+    
+    app_choices = [f"{name} - {desc}" for name, desc in available_apps]
+    app_names = [name for name, desc in available_apps]
+    
+    try:
+        # Try to use questionary for a nice interactive experience
+        import questionary
+        
+        # Add special options
+        all_choice = "✅ Install ALL applications (recommended)"
+        none_choice = "❌ Install NO applications (skip this step)"
+        custom_choice = "🔧 Let me choose specific applications"
+        
+        # First ask what they want to do
+        mode = questionary.select(
+            "What would you like to install?",
+            choices=[all_choice, custom_choice, none_choice],
+            style=questionary.Style([
+                ('question', 'bold'),
+                ('highlighted', 'bold bg:#3498db fg:#ffffff'),
+                ('pointer', 'bold'),
+                ('answer', 'bold fg:#2ecc71')
+            ])
+        ).ask()
+        
+        if mode is None or mode == none_choice:
+            return []
+        elif mode == all_choice:
+            return app_names
+        else:  # custom_choice
+            selected = questionary.checkbox(
+                "Select applications to install (use Space to select, Enter to confirm):",
+                choices=app_choices,
+                style=questionary.Style([
+                    ('question', 'bold'),
+                    ('highlighted', 'bold bg:#3498db fg:#ffffff'),
+                    ('pointer', 'bold'),
+                    ('answer', 'bold fg:#2ecc71'),
+                    ('selected', 'fg:#2ecc71')
+                ])
+            ).ask()
+            
+            if selected is None:  # User cancelled
+                return []
+                
+            # Extract app names from selected choices
+            selected_apps = []
+            for choice in selected:
+                app_name = choice.split(" - ")[0]
+                selected_apps.append(app_name)
+            
+            return selected_apps
+        
+    except ImportError:
+        # Fallback to simple text menu if questionary is not available
+        print("\n🖥️ Available applications:")
+        print("0. Install ALL applications (recommended)")
+        print("99. Install NO applications (skip)")
+        print("=" * 50)
+        
+        for i, (name, desc) in enumerate(available_apps, 1):
+            print(f"{i:2d}. {name} - {desc}")
+        
+        while True:
+            try:
+                choice = input(f"\nSelect option (0=all, 99=none, 1-{len(available_apps)} for individual, comma-separated for multiple): ").strip()
+                
+                if choice == "0":
+                    return app_names
+                elif choice == "99":
+                    return []
+                else:
+                    # Parse comma-separated choices
+                    indices = []
+                    for part in choice.split(","):
+                        part = part.strip()
+                        if part:
+                            indices.append(int(part))
+                    
+                    selected_apps = []
+                    for index in indices:
+                        if 1 <= index <= len(available_apps):
+                            selected_apps.append(available_apps[index - 1][0])
+                        else:
+                            print(f"❌ Invalid choice: {index}")
+                            break
+                    else:
+                        return selected_apps
+                        
+            except (ValueError, KeyboardInterrupt):
+                print("\n❌ App selection cancelled.")
+                return []
+
+def apps_setup(args):
+    install_homebrew()
+    
+    # Check if user wants interactive selection
+    if hasattr(args, 'interactive') and args.interactive:
+        selected_apps = interactive_app_selection()
+        
+        if not selected_apps:
+            print("✅ No applications selected for installation.")
+            return
+            
+        print(f"\n📦 Installing {len(selected_apps)} selected applications...")
+        install_cask_apps(selected_apps)
+    else:
+        # Default behavior - install all apps
+        default_apps = [
+            "visual-studio-code", "cursor", "ghostty", "slack", "google-chrome",
+            "arc", "postman", "docker"
+        ]
+        install_cask_apps(default_apps)
+    
+    print("✅ Apps setup completed.")
+
+def setup(_args):
+    print("✨ Use one of the subcommands: minimal, dev-full, apps")
+
+def add_setup_subcommands(subparsers):
+    setup_parser = subparsers.add_parser(
+        'setup', 
+        help='Setup a new laptop or development environment',
+        description="""
+Setup utilities for configuring a new laptop or development environment.
+
+This command provides different setup profiles:
+- minimal: Basic terminal and git configuration
+- dev-full: Complete development environment with tools and languages
+- apps: GUI applications for productivity and development
+
+Each setup profile is idempotent - you can run them multiple times safely.
+They will skip items that are already installed.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max setup minimal               # Basic terminal setup
+  max setup dev-full              # Full development environment
+  max setup apps                  # Install GUI applications
+        """
+    )
+    setup_subparsers = setup_parser.add_subparsers(
+        title="Setup Profiles", 
+        dest="setup_command",
+        description="Choose a setup profile based on your needs",
+        metavar="<profile>"
+    )
+    setup_parser.set_defaults(func=setup)
+
+    minimal_parser = setup_subparsers.add_parser(
+        'minimal', 
+        help='Minimal terminal and git setup for basic development',
+        description="""
+Install and configure basic development tools for terminal usage.
+
+This lightweight setup includes:
+- Homebrew package manager (if not installed)
+- Essential command-line tools: git, zsh, wget, htop
+- Oh My Zsh for enhanced terminal experience
+- Basic git configuration setup
+
+Perfect for:
+- Setting up a basic development environment
+- Servers or minimal installations
+- Users who prefer to manually install additional tools
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max setup minimal              # Install basic development tools
+        """
+    )
+    minimal_parser.set_defaults(func=minimal_setup)
+
+    dev_full_parser = setup_subparsers.add_parser(
+        'dev-full', 
+        help='Complete development environment with languages and tools',
+        description="""
+Install a comprehensive development environment with popular tools and languages.
+
+This full setup includes everything from 'minimal' plus:
+- Programming languages: Node.js (via nvm), Python
+- Container tools: Docker, kubectl  
+- Cloud tools: AWS CLI, Google Cloud SDK, Terraform
+- Development tools: tmux for terminal multiplexing
+- pipx for Python CLI tool management
+- Dotfiles cloning and configuration
+
+Perfect for:
+- New developer laptops
+- Setting up a complete coding environment
+- Full-stack development work
+- DevOps and cloud development
+
+NOTE: You'll need to update the dotfiles repository URL in the code.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max setup dev-full             # Install complete development environment
+        """
+    )
+    dev_full_parser.set_defaults(func=dev_full_setup)
+
+    apps_parser = setup_subparsers.add_parser(
+        'apps', 
+        help='Install essential GUI applications for development and productivity',
+        description="""
+Install popular GUI applications using Homebrew Cask.
+
+By default, this installs all applications:
+- Development: Visual Studio Code, Cursor AI Editor, Docker Desktop
+- Communication: Slack  
+- Browsers: Google Chrome, Arc Browser
+- API Testing: Postman
+- Terminal: Ghostty (modern GPU-accelerated terminal)
+
+INTERACTIVE MODE: Use --interactive flag to choose specific applications to install.
+You can select individual apps, install all, or skip installation entirely.
+
+All applications are installed via Homebrew Cask, making them easy to manage
+and update. The installation will skip apps that are already installed.
+
+Perfect for:
+- Setting up GUI applications on a new Mac
+- Standardizing application installs across team members
+- Customizing which productivity applications to install
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max setup apps                 # Install all GUI applications (default)
+  max setup apps --interactive   # Choose specific apps to install
+  
+Interactive mode provides:
+- Checkbox selection with Space/Enter (if questionary available)
+- Numbered selection with fallback mode
+- Options to install all, none, or specific applications
+        """
+    )
+    apps_parser.add_argument('--interactive', action='store_true', help='Interactive app selection')
+    apps_parser.set_defaults(func=apps_setup)
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog='max', 
+        description="Max's Personal CLI - A collection of useful development and operations commands",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max init                        # Initialize CLI with your personal configuration
+  max create-config myproject     # Create new gcloud config with full setup
+  max switch-config altekai       # Switch to existing gcloud config
+  max list-configs                # Show all available configurations
+  max kctx my-k8s-context         # Switch Kubernetes context
+  max docker-clean                # Clean up Docker system
+  max docker-tidy                 # Gentle Docker cleanup
+  max setup minimal               # Basic development environment setup
+  max setup dev-full              # Complete development environment
+  max setup apps                  # Install GUI applications
+        """
+    )
+    subparsers = parser.add_subparsers(
+        title="Available Commands", 
+        dest="command",
+        description="Choose a command to run. Use 'max <command> --help' for detailed help on each command.",
+        metavar="<command>"
+    )
+    parser.set_defaults(func=lambda _: parser.print_help())
+
+    # Initialize configuration command
+    init_parser = subparsers.add_parser(
+        'init',
+        help='Initialize or update personal configuration',
+        description="""
+Initialize MaxCLI with your personal configuration settings.
+
+This is a one-time setup (or update) process that collects:
+- Git username and email for repository configuration
+- Dotfiles repository URL (optional)
+- Google Cloud Platform project mappings (optional)
+
+The configuration is saved to ~/.config/maxcli/config.json and used by
+other commands to personalize their behavior.
+
+After initialization, commands like 'max setup dev-full' will use your
+personal git settings and dotfiles repository automatically.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max init                        # First-time setup or update existing config
+  max init --force                # Force reconfiguration (skip confirmation)
+        """
+    )
+    init_parser.add_argument('--force', action='store_true', help='Force reconfiguration without confirmation')
+    init_parser.set_defaults(func=init_config)
+
+    # Switch gcloud configuration command
+    sc_parser = subparsers.add_parser(
+        'switch-config', 
+        help='Switch gcloud config and application default credentials',
+        description="""
+Switch to an existing gcloud configuration and its associated Application Default Credentials (ADC).
+
+This command will:
+1. Activate the specified gcloud configuration
+2. Copy the saved ADC file for this configuration to the active ADC location
+3. Set the appropriate quota project if a mapping exists
+
+The configuration must have been previously created using 'max create-config' or manually set up
+with a corresponding ADC file at ~/.config/gcloud/adc_<name>.json
+
+INTERACTIVE MODE: If no configuration name is provided, you'll see an interactive menu
+with arrow key navigation to select from available configurations.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max switch-config altekai       # Switch to 'altekai' configuration
+  max switch-config               # Interactive mode - choose from menu
+  max switch-config urbansharing  # Switch to 'urbansharing' configuration
+        """
+    )
+    sc_parser.add_argument('name', nargs='?', help='Configuration name (optional - if not provided, shows interactive menu)')
+    sc_parser.set_defaults(func=switch_config)
+
+    # Create new gcloud configuration command
+    cc_parser = subparsers.add_parser(
+        'create-config', 
+        help='Create new gcloud config with full authentication setup',
+        description="""
+Create a new gcloud configuration with complete authentication and ADC setup.
+
+This command will guide you through:
+1. Creating a new gcloud configuration
+2. Authenticating with your Google account
+3. Setting up Application Default Credentials (ADC)
+4. Saving the ADC file for future switching
+5. Configuring quota project (with smart mapping or manual input)
+
+After completion, you can switch to this configuration using 'max switch-config <name>'.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max create-config myproject     # Create config named 'myproject'
+  max create-config altekai       # Create config with existing quota mapping
+        """
+    )
+    cc_parser.add_argument('name', help='Configuration name to create (required)')
+    cc_parser.set_defaults(func=create_config)
+
+    # List available configurations command
+    lc_parser = subparsers.add_parser(
+        'list-configs', 
+        help='List all available gcloud configurations with ADC files',
+        description="""
+Display all gcloud configurations that have associated Application Default Credentials (ADC) files.
+
+This shows configurations that can be used with 'max switch-config' command.
+Only configurations with saved ADC files in ~/.config/gcloud/adc_*.json are listed.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max list-configs                # Show all available configurations
+        """
+    )
+    lc_parser.set_defaults(func=list_configs)
+
+    # Docker cleanup command
+    dc_parser = subparsers.add_parser(
+        'docker-clean', 
+        help='Clean up Docker system (containers, images, volumes, networks)',
+        description="""
+Perform a comprehensive Docker system cleanup.
+
+This command runs 'docker system prune -af' which removes:
+- All stopped containers
+- All networks not used by at least one container
+- All dangling images
+- All build cache
+- All unused volumes
+
+WARNING: This will remove ALL unused Docker resources. Make sure you don't need any
+stopped containers or unused images before running this command.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max docker-clean                # Clean up Docker system
+        """
+    )
+    dc_parser.set_defaults(func=docker_clean)
+
+    # Gentle Docker cleanup command
+    dt_parser = subparsers.add_parser(
+        'docker-tidy', 
+        help='Gentle Docker cleanup (removes only old/unused items)',
+        description="""
+Perform a conservative Docker cleanup that only removes truly unused items.
+
+This safer alternative to 'docker-clean' removes:
+- Containers stopped for more than 24 hours
+- Dangling images only (untagged/unreferenced)
+- Unused networks
+- Build cache older than 7 days
+
+This command preserves:
+- All tagged images (even if not currently used)
+- Recently stopped containers (stopped <24h ago)
+- All volumes (never touches data)
+- Recent build cache
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max docker-tidy                 # Safe Docker cleanup
+  max docker-clean                # Aggressive cleanup (if needed)
+        """
+    )
+    dt_parser.set_defaults(func=docker_tidy)
+
+    # Kubernetes context switching command
+    kctx_parser = subparsers.add_parser(
+        'kctx', 
+        help='Switch Kubernetes context',
+        description="""
+Switch the current Kubernetes context using kubectl.
+
+This is equivalent to running 'kubectl config use-context <context>' but with a shorter command.
+The context must already exist in your kubectl configuration.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max kctx minikube               # Switch to minikube context
+  max kctx production-cluster     # Switch to production cluster context
+  
+To see available contexts, run: kubectl config get-contexts
+        """
+    )
+    kctx_parser.add_argument('context', help='Kubernetes context name (required)')
+    kctx_parser.set_defaults(func=kctx)
+
+    # Database backup command
+    bkp_parser = subparsers.add_parser(
+        'backup-db', 
+        help='Backup PostgreSQL database to timestamped file',
+        description="""
+Create a backup of the PostgreSQL database 'mydb' using pg_dump.
+
+The backup file will be saved to ~/backups/db_<date>.sql where <date> is the current date
+in YYYY-MM-DD format. The backup directory will be created if it doesn't exist.
+
+Requirements:
+- PostgreSQL client tools (pg_dump) must be installed
+- Database 'mydb' must exist and be accessible
+- User must have read permissions on the database
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max backup-db                   # Create backup file like ~/backups/db_2024-01-15.sql
+        """
+    )
+    bkp_parser.set_defaults(func=backup_db)
+
+    # Application deployment command
+    deploy_parser = subparsers.add_parser(
+        'deploy-app', 
+        help='Deploy the application (placeholder command)',
+        description="""
+Deploy the application using predefined deployment logic.
+
+NOTE: This is currently a placeholder command. The actual deployment logic
+needs to be implemented based on your specific deployment requirements.
+
+Typical deployment steps might include:
+- Building the application
+- Running tests
+- Pushing to container registry
+- Updating Kubernetes deployments
+- Running post-deployment checks
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Example:
+  max deploy-app                  # Run deployment process
+        """
+    )
+    deploy_parser.set_defaults(func=deploy_app)
+
+    # Enable autocomplete if argcomplete is installed
+    try:
+        import argcomplete  # type: ignore # Optional dependency
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
+
+    # Add setup subcommands for laptop/dev environment setup
+    add_setup_subcommands(subparsers)
+
+    args = parser.parse_args()
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
