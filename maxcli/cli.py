@@ -255,6 +255,84 @@ def get_current_version() -> Optional[str]:
     return None
 
 
+def check_for_updates_quietly() -> tuple[bool, int]:
+    """Check for available updates without verbose output.
+    
+    Returns:
+        Tuple of (updates_available, commits_behind)
+    """
+    maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
+    
+    try:
+        # Ensure we have a git repository
+        git_dir = maxcli_install_path / ".git"
+        if not git_dir.exists():
+            return False, 0
+        
+        # Fetch latest changes quietly
+        subprocess.run([
+            "git", "-C", str(maxcli_install_path), "fetch", "origin"
+        ], capture_output=True, timeout=15)
+        
+        # Check if updates are available
+        result = subprocess.run([
+            "git", "-C", str(maxcli_install_path), "rev-list", "--count", "HEAD..origin/main"
+        ], capture_output=True, text=True, timeout=5)
+        
+        if result.returncode == 0:
+            commits_behind = int(result.stdout.strip())
+            return commits_behind > 0, commits_behind
+            
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, ValueError):
+        pass
+    
+    return False, 0
+
+
+def display_version(args) -> None:
+    """Display current MaxCLI version and check for updates.
+    
+    Args:
+        args: Parsed command line arguments (unused but required for consistency).
+    """
+    print("🚀 MaxCLI - Max's Personal Development CLI")
+    print("=" * 50)
+    
+    # Get current version
+    current_version = get_current_version()
+    if current_version:
+        print(f"📌 Version: {current_version}")
+        
+        # Check for updates (with a timeout to avoid hanging)
+        print("🔍 Checking for updates...", end="", flush=True)
+        try:
+            updates_available, commits_behind = check_for_updates_quietly()
+            print(" ✅")
+            
+            if updates_available:
+                print(f"🆕 {commits_behind} update(s) available!")
+                print("💡 Run 'max update' to get the latest features")
+            else:
+                print("✅ You're running the latest version!")
+                
+        except Exception:
+            print(" ⚠️")
+            print("⚠️  Could not check for updates (network issue)")
+            
+    else:
+        print("📌 Version: Unknown (not git-tracked)")
+        print("")
+        print("💡 To enable version tracking and updates:")
+        print("   1. Run 'max update' to initialize git repository")
+        print("   2. Then use 'max -v' to check version and updates")
+    
+    # Repository information
+    print(f"\n📂 Installation: ~/.local/lib/python/maxcli/")
+    print(f"🔗 Repository: https://github.com/maximilianls98/maxcli")
+    print(f"📖 Help: max --help")
+    print(f"🔄 Update: max update")
+
+
 def fetch_github_releases(repo: str = "maximilianls98/maxcli") -> List[dict]:
     """Fetch the latest releases from GitHub API.
     
@@ -548,6 +626,13 @@ Use 'max modules list' to see available functionality.
         """
     )
     
+    # Add version arguments
+    parser.add_argument(
+        '-v', '--version',
+        action='store_true',
+        help='Show MaxCLI version information and check for updates'
+    )
+    
     return parser
 
 
@@ -724,8 +809,15 @@ def main() -> None:
     except ImportError:
         pass
     
-    # Parse arguments and execute the appropriate function
+    # Parse arguments
     args = parser.parse_args()
+    
+    # Handle version flag early (before subcommands)
+    if hasattr(args, 'version') and args.version:
+        display_version(args)
+        return
+    
+    # Execute the appropriate function
     if hasattr(args, 'func'):
         args.func(args)
     else:
