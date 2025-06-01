@@ -43,7 +43,7 @@ OPTIONS:
 
 AVAILABLE MODULES:
     ssh_manager       SSH connection and key management
-    ssh_backup        SSH key backup/restore with GPG encryption  
+    ssh_backup        SSH key backup/restore with GPG encryption (GPG auto-installed)
     ssh_rsync         SSH-based rsync operations
     docker_manager    Docker system cleanup and management
     kubernetes_manager Kubernetes context switching
@@ -115,6 +115,7 @@ done
 # Configuration for standalone mode
 TEMP_DIR=""
 CLEANUP_REQUIRED=false
+INSTALLATION_IN_PROGRESS=false
 
 # Function to detect if we're running in standalone mode
 is_standalone_mode() {
@@ -161,14 +162,30 @@ download_required_files() {
 
 # Function to cleanup temporary files
 cleanup() {
+    if [[ "$INSTALLATION_IN_PROGRESS" == "true" ]]; then
+        echo ""
+        echo "⚠️  Cleanup requested while installation in progress - deferring cleanup"
+        echo "📍 Cleanup triggered from: ${BASH_SOURCE[1]}:${BASH_LINENO[0]}"
+        return 0
+    fi
+    
     if [[ "$CLEANUP_REQUIRED" == "true" ]] && [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        echo ""
         echo "🧹 Cleaning up temporary files..."
+        echo "📍 Cleanup triggered from: ${BASH_SOURCE[1]}:${BASH_LINENO[0]}"
+        echo "📁 Removing temporary directory: $TEMP_DIR"
         rm -rf "$TEMP_DIR"
+        echo "✅ Temporary files cleaned up"
     fi
 }
 
 # Set trap for cleanup on script exit (ONLY after argument parsing)
 trap cleanup EXIT
+
+# Add signal handlers for debugging unexpected exits
+trap 'echo "🚨 Script interrupted by SIGINT (Ctrl+C)" >&2; exit 130' INT
+trap 'echo "🚨 Script terminated by SIGTERM" >&2; exit 143' TERM
+trap 'echo "📍 Script exiting at line $LINENO in function ${FUNCNAME[0]:-main}" >&2' ERR
 
 echo "🔍 Proceeding with installation (arguments parsed safely)..."
 
@@ -359,10 +376,10 @@ install_dependencies() {
         # Suppress verbose output and auto-updates to prevent process mixing
         brew update >/dev/null 2>&1 || echo "⚠️  Homebrew update had issues, continuing..."
         
-        # Install dependencies one by one with explicit wait
-        dependencies=("gnupg" "python" "rsync" "curl" "wget")
+        # Install basic dependencies first
+        basic_dependencies=("python" "rsync" "curl" "wget")
         
-        for dep in "${dependencies[@]}"; do
+        for dep in "${basic_dependencies[@]}"; do
             if ! command -v "$dep" &> /dev/null; then
                 echo "📦 Installing $dep..."
                 # Install with output suppression to prevent mixing
@@ -376,30 +393,92 @@ install_dependencies() {
             fi
         done
         
-        # CRITICAL FIX: Wait for any background Homebrew processes to complete
-        echo "⏳ Ensuring all Homebrew processes are complete..."
-        sleep 2
-        
-        # Kill any lingering background brew processes that might interfere
-        pkill -f "brew" 2>/dev/null || true
-        sleep 1
-        
-        echo "✅ Dependency installation phase completed"
+        echo "✅ Basic dependency installation phase completed"
     else
         echo "⚠️  Homebrew not available, skipping package installation"
         echo "💡 You can install them manually later if needed"
     fi
 }
 
+# Function to install optional dependencies based on enabled modules
+install_optional_dependencies() {
+    # This function will be called after module selection
+    if [[ -f ~/.config/maxcli/modules_config.json ]] && command -v brew &> /dev/null; then
+        echo ""
+        echo "🔧 Installing module-specific dependencies..."
+        
+        # Check if ssh_backup module is enabled (requires gnupg)
+        if grep -q '"ssh_backup"' ~/.config/maxcli/modules_config.json 2>/dev/null && \
+           grep -A5 '"ssh_backup"' ~/.config/maxcli/modules_config.json | grep -q '"enabled": true'; then
+            
+            if ! command -v gpg &> /dev/null; then
+                echo ""
+                echo "🔐 Installing GPG (required for ssh_backup module)..."
+                echo "⚠️  Note: GPG installation can take 5-10 minutes due to dependencies"
+                echo "📊 Progress will be shown below - please be patient!"
+                echo ""
+                
+                # Show progress during gnupg installation
+                echo "🔄 Starting GPG installation (this may compile from source)..."
+                if brew install gnupg; then
+                    echo "✅ GPG installed successfully"
+                else
+                    echo "❌ Failed to install GPG"
+                    echo "💡 ssh_backup module may not work without GPG"
+                    echo "🔧 You can install it manually later with: brew install gnupg"
+                fi
+            else
+                echo "✅ GPG already available for ssh_backup module"
+            fi
+        fi
+        
+        # Future: Add other module-specific dependencies here
+        # if grep -q '"docker_manager"' ~/.config/maxcli/modules_config.json 2>/dev/null; then
+        #     # Check for docker installation
+        # fi
+        
+    fi
+}
+
 # Main installation flow with proper sequencing
+echo "🚀 Starting main installation phase..."
+INSTALLATION_IN_PROGRESS=true
+
 install_homebrew
 setup_python
 install_dependencies
 
-# CRITICAL FIX: Add explicit wait to ensure all background processes are done
+# Add debugging to track progress
 echo ""
-echo "⏳ Ensuring all system processes are synchronized..."
-sleep 3
+echo "🔍 Proceeding to virtual environment setup..."
+echo "📊 Current status: Basic system setup completed"
+
+# CRITICAL: Verify files are still available before proceeding
+echo "🔍 Verifying required files are still available..."
+echo "📁 Script directory: $SCRIPT_DIR"
+echo "📁 Cleanup required: $CLEANUP_REQUIRED"
+echo "📁 Temp directory: $TEMP_DIR"
+
+if [[ ! -f "$SCRIPT_DIR/requirements.txt" ]]; then
+    echo "❌ CRITICAL: requirements.txt disappeared from $SCRIPT_DIR"
+    echo "🔍 Directory contents:"
+    ls -la "$SCRIPT_DIR" 2>/dev/null || echo "❌ Directory no longer exists"
+    echo ""
+    echo "🧹 This suggests a cleanup race condition - exiting..."
+    exit 1
+fi
+
+if [[ ! -f "$SCRIPT_DIR/main.py" ]]; then
+    echo "❌ CRITICAL: main.py disappeared from $SCRIPT_DIR"
+    exit 1
+fi
+
+if [[ ! -d "$SCRIPT_DIR/maxcli" ]]; then
+    echo "❌ CRITICAL: maxcli directory disappeared from $SCRIPT_DIR"
+    exit 1
+fi
+
+echo "✅ All required files verified before virtual environment setup"
 
 # Create virtual environment for maxcli
 echo ""
@@ -409,6 +488,7 @@ echo "📦 Setting up MaxCLI virtual environment..."
 mkdir -p ~/.venvs
 
 # Create virtual environment with error checking
+echo "🔄 Creating Python virtual environment at ~/.venvs/maxcli..."
 if python3 -m venv ~/.venvs/maxcli; then
     echo "✅ Virtual environment created successfully"
 else
@@ -422,31 +502,53 @@ else
     echo "   1. Check Python installation: python3 --version"
     echo "   2. Check venv availability: python3 -m venv --help"
     echo "   3. Try manual creation: python3 -m venv ~/.venvs/maxcli"
+    echo ""
+    echo "🧹 Cleaning up and exiting..."
     exit 1
 fi
 
 # Activate virtual environment with error checking
+echo "🔄 Activating virtual environment..."
 if source ~/.venvs/maxcli/bin/activate; then
     echo "✅ Virtual environment activated"
 else
     echo "❌ Failed to activate virtual environment"
     echo "💡 The virtual environment was created but can't be activated"
     echo "🔧 Please check ~/.venvs/maxcli/bin/activate exists and is readable"
+    echo ""
+    echo "🧹 Cleaning up and exiting..."
     exit 1
 fi
 
 # Verify Python in virtual environment
+echo "🔄 Verifying Python installation in virtual environment..."
 if [[ -f ~/.venvs/maxcli/bin/python ]]; then
     echo "✅ Python available in virtual environment: $(~/.venvs/maxcli/bin/python --version)"
 else
     echo "❌ Python not found in virtual environment"
     echo "💡 Virtual environment creation may have failed silently"
+    echo "🔧 Expected location: ~/.venvs/maxcli/bin/python"
+    echo ""
+    echo "🧹 Cleaning up and exiting..."
     exit 1
 fi
 
 # Install dependencies (using absolute path)
 echo ""
-echo "📚 Installing dependencies..."
+echo "📚 Installing Python dependencies from requirements.txt..."
+echo "📍 Using requirements file: $SCRIPT_DIR/requirements.txt"
+
+# Double-check the requirements file exists right before using it
+if [[ ! -f "$SCRIPT_DIR/requirements.txt" ]]; then
+    echo "❌ CRITICAL: requirements.txt no longer exists at pip installation time"
+    echo "📁 Script directory: $SCRIPT_DIR"
+    echo "📁 Directory contents:"
+    ls -la "$SCRIPT_DIR" 2>/dev/null || echo "❌ Directory no longer exists"
+    echo ""
+    echo "🧹 This confirms a cleanup race condition - exiting..."
+    exit 1
+fi
+
 if pip install -r "$SCRIPT_DIR/requirements.txt"; then
     echo "✅ Dependencies installed successfully"
 else
@@ -460,6 +562,8 @@ else
     echo "   source ~/.venvs/maxcli/bin/activate"
     echo "   pip install --upgrade pip"
     echo "   pip install questionary colorama requests pynacl"
+    echo ""
+    echo "🧹 Cleaning up and exiting..."
     exit 1
 fi
 
@@ -715,7 +819,7 @@ using 'max modules enable/disable <module>' commands.
 Available modules:
 
 📱 ssh_manager      - SSH connection management and key handling
-🔐 ssh_backup       - SSH key backup and restore with GPG encryption
+🔐 ssh_backup       - SSH key backup and restore with GPG encryption (GPG auto-installed)
 📁 ssh_rsync        - SSH-based rsync operations and remote backup
 🐳 docker_manager   - Docker system cleanup and management
 ☸️  kubernetes_manager - Kubernetes context switching
@@ -766,6 +870,7 @@ EOF
     # SSH-related modules (ask if ssh_manager is enabled)
     if [[ " ${enabled_modules[*]} " =~ " ssh_manager " ]]; then
         if ask_yes_no "🔐 Enable ssh_backup (SSH key backup/restore with GPG)" "n"; then
+            echo "💡 Note: This will install GPG (5-10 minutes) when needed"
             enabled_modules+=("ssh_backup")
         fi
 
@@ -877,6 +982,9 @@ EOF
 
 echo "✅ Module configuration created with ${#enabled_modules[@]} modules enabled"
 
+# Install module-specific dependencies after configuration is created
+install_optional_dependencies
+
 # Show summary of enabled modules
 if [[ ${#enabled_modules[@]} -gt 0 ]]; then
     echo ""
@@ -960,6 +1068,10 @@ if [[ ${#enabled_modules[@]} -gt 0 ]]; then
 fi
 
 echo ""
+
+# Clear installation flag to allow cleanup
+echo "🎯 Installation phase completed successfully!"
+INSTALLATION_IN_PROGRESS=false
 
 # Cleanup temporary files before showing completion
 if [[ "$CLEANUP_REQUIRED" == "true" ]]; then
