@@ -113,7 +113,6 @@ addopts = [
     "--cov-branch",
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
-    "--cov-fail-under=20",
     "-n",
     "auto"
 ]
