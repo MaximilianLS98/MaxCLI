@@ -94,9 +94,9 @@ jobs:
 
             - name: Run Docker integration tests
               run: |
-                  # Test with actual Docker commands (if available)
+                  # Run Docker-specific integration tests using marker
                   if command -v docker &> /dev/null; then
-                    pytest tests/integration/ -k "docker" -v
+                    pytest tests/integration/ -v --no-cov -m docker
                   else
                     echo "Docker not available, skipping Docker integration tests"
                   fi

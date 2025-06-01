@@ -33,6 +33,7 @@ class TestModuleLoading:
         # This test ensures the loading process completes without errors
         assert subparsers is not None
     
+    @pytest.mark.docker
     def test_disabled_modules_not_loaded(self, cli_test_environment, isolated_cli_parser):
         """Test that disabled modules are not loaded."""
         parser, subparsers = isolated_cli_parser
@@ -168,6 +169,7 @@ class TestModuleDependencies:
                 # Should have attempted to import the module
                 assert mock_import.called
     
+    @pytest.mark.docker
     def test_partial_module_failure_continues_loading(self, cli_test_environment):
         """Test that failure of one module doesn't stop loading others."""
         config = create_test_config(["ssh_manager", "docker_manager", "kubernetes_manager"])
@@ -192,6 +194,7 @@ class TestModuleDependencies:
 class TestFullCLIIntegration:
     """Test full CLI integration scenarios."""
     
+    @pytest.mark.docker
     def test_complete_cli_setup_with_modules(self, cli_test_environment):
         """Test complete CLI setup with modules enabled."""
         config = create_test_config(["ssh_manager", "docker_manager"])
@@ -236,6 +239,7 @@ class TestFullCLIIntegration:
             args = parser.parse_args(['modules', 'list'])
             assert args.command == 'modules'
     
+    @pytest.mark.docker
     def test_cli_argument_parsing_edge_cases(self, cli_test_environment):
         """Test CLI argument parsing edge cases."""
         config = create_test_config(["docker_manager"])
