@@ -34,7 +34,7 @@ jobs:
 
                   # Install required tools for testing
                   sudo apt-get update
-                  sudo apt-get install -y curl wget timeout
+                  sudo apt-get install -y curl wget
 
             - name: Run Comprehensive Bootstrap Tests
               id: test_bootstrap
