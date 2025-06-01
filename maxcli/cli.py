@@ -255,38 +255,90 @@ def get_current_version() -> Optional[str]:
     return None
 
 
-def check_for_updates_quietly() -> tuple[bool, int]:
-    """Check for available updates without verbose output.
+def compare_versions(current: str, latest: str) -> bool:
+    """Compare two version strings to determine if latest is newer.
+    
+    Handles both semantic versions (v1.2.3) and commit hashes.
+    
+    Args:
+        current: Current version string.
+        latest: Latest version string from GitHub.
+        
+    Returns:
+        True if latest is newer than current, False otherwise.
+    """
+    # If current is a commit hash (short), any release is considered newer
+    if len(current) <= 8 and not current.startswith('v'):
+        return True
+    
+    # Remove 'v' prefix if present for comparison
+    current_clean = current.lstrip('v')
+    latest_clean = latest.lstrip('v')
+    
+    # If either isn't a semantic version, fall back to string comparison
+    try:
+        # Simple semantic version comparison (major.minor.patch)
+        current_parts = [int(x) for x in current_clean.split('.')]
+        latest_parts = [int(x) for x in latest_clean.split('.')]
+        
+        # Pad shorter version with zeros
+        max_len = max(len(current_parts), len(latest_parts))
+        current_parts.extend([0] * (max_len - len(current_parts)))
+        latest_parts.extend([0] * (max_len - len(latest_parts)))
+        
+        return latest_parts > current_parts
+        
+    except (ValueError, AttributeError):
+        # Fall back to string comparison if not semantic versions
+        return latest_clean > current_clean
+
+
+def get_latest_release_version() -> Optional[str]:
+    """Get the latest release version from GitHub.
     
     Returns:
-        Tuple of (updates_available, commits_behind)
+        Latest release tag name if available, None otherwise.
     """
-    maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
-    
     try:
-        # Ensure we have a git repository
-        git_dir = maxcli_install_path / ".git"
-        if not git_dir.exists():
-            return False, 0
-        
-        # Fetch latest changes quietly
-        subprocess.run([
-            "git", "-C", str(maxcli_install_path), "fetch", "origin"
-        ], capture_output=True, timeout=15)
-        
-        # Check if updates are available
-        result = subprocess.run([
-            "git", "-C", str(maxcli_install_path), "rev-list", "--count", "HEAD..origin/main"
-        ], capture_output=True, text=True, timeout=5)
-        
-        if result.returncode == 0:
-            commits_behind = int(result.stdout.strip())
-            return commits_behind > 0, commits_behind
-            
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError, ValueError):
+        releases = fetch_github_releases()
+        if releases:
+            # Get the latest non-prerelease, or latest prerelease if no stable releases
+            stable_releases = [r for r in releases if not r.get('prerelease', False)]
+            if stable_releases:
+                return stable_releases[0].get('tag_name')
+            elif releases:
+                return releases[0].get('tag_name')
+    except Exception:
         pass
     
-    return False, 0
+    return None
+
+
+def check_for_updates_quietly() -> tuple[bool, Optional[str]]:
+    """Check for available updates using GitHub releases.
+    
+    Returns:
+        Tuple of (updates_available, latest_version)
+    """
+    try:
+        # Get current version
+        current_version = get_current_version()
+        if not current_version:
+            return False, None
+        
+        # Get latest release from GitHub
+        latest_version = get_latest_release_version()
+        if not latest_version:
+            return False, None
+        
+        # Compare versions
+        has_update = compare_versions(current_version, latest_version)
+        return has_update, latest_version if has_update else None
+        
+    except Exception:
+        pass
+    
+    return False, None
 
 
 def display_version(args) -> None:
@@ -306,11 +358,14 @@ def display_version(args) -> None:
         # Check for updates (with a timeout to avoid hanging)
         print("🔍 Checking for updates...", end="", flush=True)
         try:
-            updates_available, commits_behind = check_for_updates_quietly()
+            updates_available, latest_version = check_for_updates_quietly()
             print(" ✅")
             
-            if updates_available:
-                print(f"🆕 {commits_behind} update(s) available!")
+            if updates_available and latest_version:
+                print(f"🆕 New release available: {latest_version}")
+                print("💡 Run 'max update' to get the latest features")
+            elif updates_available:
+                print("🆕 Updates available!")
                 print("💡 Run 'max update' to get the latest features")
             else:
                 print("✅ You're running the latest version!")
@@ -352,9 +407,6 @@ def fetch_github_releases(repo: str = "maximilianls98/maxcli") -> List[dict]:
             if response.status == 200:
                 content = response.read().decode('utf-8')
                 releases = json.loads(content)
-                if not releases:
-                    print(f"   📝 No formal releases found for {repo}")
-                    print(f"   💡 Updates are still available via git commits")
                 return releases
             else:
                 print(f"   ⚠️  GitHub API returned status {response.status}")
@@ -515,28 +567,36 @@ def update_maxcli(args) -> None:
             "git", "-C", str(maxcli_install_path), "fetch", "origin"
         ], check=True, capture_output=True, timeout=30)
         
-        # Check if updates are available
-        result = subprocess.run([
-            "git", "-C", str(maxcli_install_path), "rev-list", "--count", "HEAD..origin/main"
-        ], capture_output=True, text=True, timeout=10)
+        # Check if updates are available using releases
+        print("   🔍 Checking for new releases...")
+        updates_available, latest_version = check_for_updates_quietly()
         
-        if result.returncode == 0:
-            commits_behind = int(result.stdout.strip())
-            if commits_behind == 0:
-                print("   ✅ MaxCLI is already up to date!")
-                
-                # Still show release notes if requested
-                if not args.show_releases:
-                    print("\n💡 To see release notes, run: max update --show-releases")
-                return
+        if not updates_available:
+            print("   ✅ MaxCLI is already up to date!")
+            
+            # Still show release notes if requested
+            if not args.show_releases:
+                print("\n💡 To see release notes, run: max update --show-releases")
+            return
+        else:
+            if latest_version:
+                print(f"   📦 New release available: {latest_version}")
             else:
-                print(f"   📦 {commits_behind} update(s) available")
+                print("   📦 Updates available")
         
         # Pull the latest changes
         print("   ⬇️  Pulling latest changes...")
-        subprocess.run([
-            "git", "-C", str(maxcli_install_path), "pull", "origin", "main"
-        ], check=True, capture_output=True, timeout=30)
+        if latest_version:
+            # Checkout the specific release tag
+            print(f"   🏷️  Checking out release {latest_version}...")
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "checkout", latest_version
+            ], check=True, capture_output=True, timeout=30)
+        else:
+            # Fallback to pulling main branch
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "pull", "origin", "main"
+            ], check=True, capture_output=True, timeout=30)
         
         # Reinstall dependencies if requirements.txt changed
         print("   🔧 Checking for dependency updates...")
@@ -678,13 +738,13 @@ Examples:
         description="""
 🔄 MaxCLI Updater - Keep Your CLI Up to Date
 
-This command updates MaxCLI to the latest version by pulling changes from GitHub.
+This command updates MaxCLI to the latest release version from GitHub.
 It performs the following operations:
 
 🔍 Version Checking:
     • Shows current installed version (git tag or commit hash)
-    • Checks for available updates from GitHub repository
-    • Displays number of commits behind latest version
+    • Checks for new releases from GitHub repository
+    • Only considers formal GitHub releases as updates (not every commit)
 
 📋 Release Notes:
     • Fetches and displays recent release notes from GitHub
@@ -694,18 +754,22 @@ It performs the following operations:
 
 ⚡ Update Process:
     • Automatically initializes git repository if needed
-    • Pulls latest changes from GitHub (main branch)
+    • Checks out the specific release tag (not main branch)
     • Updates Python dependencies if requirements.txt changed
     • Preserves all personal configurations and module settings
 
 🔧 Safe Operation:
     • Uses git to track changes and ensure clean updates
+    • Only updates to stable release versions
     • Maintains virtual environment integrity
     • No data loss - configurations remain intact
     • Immediate availability of new features
 
 The update is performed on the MaxCLI installation at ~/.local/lib/python/maxcli/
 and will immediately be available for use without restarting the terminal.
+
+Note: This command only considers formal GitHub releases as updates. Development
+commits between releases are not considered "updates" to ensure stability.
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
