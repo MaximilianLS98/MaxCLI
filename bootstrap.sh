@@ -26,10 +26,10 @@ USAGE:
 
 INSTALLATION MODES:
     Standalone (download files automatically):
-        curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
+        curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
 
     Local (use files in current directory):
-        git clone https://github.com/yourusername/maxcli.git
+        git clone https://github.com/maximilianls98/maxcli.git
         cd maxcli
         ./bootstrap.sh
 
@@ -63,7 +63,7 @@ EXAMPLES:
     ./bootstrap.sh --github-repo=yourfork/maxcli
     
     # Standalone with modules
-    curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules=ssh_manager,setup_manager
+    curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules=ssh_manager,setup_manager
 
 EOF
 }
@@ -72,7 +72,7 @@ EOF
 # This ensures --help exits immediately without triggering any cleanup or file operations
 PRESET_MODULES=""
 FORCE_DOWNLOAD=false
-GITHUB_REPO="yourusername/maxcli"
+GITHUB_REPO="maximilianls98/maxcli"
 GITHUB_BRANCH="main"
 
 for arg in "$@"; do

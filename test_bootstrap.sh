@@ -9,7 +9,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly BOOTSTRAP_SCRIPT="$SCRIPT_DIR/bootstrap.sh"
 readonly TEST_OUTPUT_DIR="/tmp/maxcli_test_$$"
-readonly GITHUB_REPO_TEST="yourusername/maxcli"
+readonly GITHUB_REPO_TEST="maximilianls98/maxcli"
 readonly GITHUB_BRANCH_TEST="main"
 
 # ANSI color codes for output formatting

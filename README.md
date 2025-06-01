@@ -34,13 +34,13 @@ The standalone method automatically downloads and installs MaxCLI with a single 
 
 ```bash
 # Basic installation with interactive module selection
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
 
 # Quick installation with preset modules
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager"
 
 # Installation with all available modules
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
 ```
 
 #### Standalone Installation Options
@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.
 curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli"
 
 # Install from development branch
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/development/bootstrap.sh | bash -s -- --github-branch "development"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/development/bootstrap.sh | bash -s -- --github-branch "development"
 
 # Install specific modules from a fork
 curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli" --modules "ssh_manager,custom_module"
@@ -71,7 +71,7 @@ The local method gives you full control and is ideal for development or customiz
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/maxcli.git
+git clone https://github.com/maximilianls98/maxcli.git
 cd maxcli
 
 # Run the bootstrap script
@@ -98,7 +98,7 @@ Get detailed information about all available options:
 
 ```bash
 # Download and show help
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --help
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --help
 
 # Or with local installation
 ./bootstrap.sh --help
@@ -110,19 +110,19 @@ Here are some common module combinations for different use cases:
 
 ```bash
 # Frontend Developer
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "setup_manager,ssh_manager,docker_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "setup_manager,ssh_manager,docker_manager"
 
 # DevOps Engineer
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager"
 
 # Full Stack Developer
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager,gcp_manager,misc_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager,gcp_manager,misc_manager"
 
 # Minimalist Setup
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager"
 
 # Power User (All Modules)
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
 ```
 
 ### ✅ Post-Installation
@@ -152,7 +152,7 @@ If you prefer manual control over the installation process:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/maxcli.git
+git clone https://github.com/maximilianls98/maxcli.git
 cd maxcli
 
 # Create virtual environment
@@ -259,6 +259,121 @@ max modules disable ssh_backup
 # Enable multiple modules
 max modules enable ssh_backup ssh_rsync misc_manager
 ```
+
+## 🗑️ Uninstalling MaxCLI
+
+⚠️ **WARNING: Complete System Removal**
+
+MaxCLI provides a built-in uninstall command that completely removes all traces of the CLI from your system. This operation is **IRREVERSIBLE** and will permanently delete all your configurations, settings, and customizations.
+
+### What Gets Removed
+
+The uninstall command removes:
+
+🗂️ **Configuration Files:**
+
+- `~/.config/maxcli/` (entire directory)
+- All module configurations and settings
+- SSH target profiles and connections
+- Personal git settings and API keys
+- Coolify instance configurations
+- GCP project mappings
+
+📁 **Installation Files:**
+
+- `~/.local/lib/python/maxcli/` (MaxCLI library)
+- `~/bin/max` (main executable)
+
+🔧 **Shell Configuration:**
+
+- PATH modification in `~/.zshrc` (if added by MaxCLI)
+- PATH modification in `~/.bashrc` (if exists)
+- PATH modification in `~/.bash_profile` (if exists)
+
+💾 **Backup Files (if they exist):**
+
+- SSH backup files created by ssh_backup module (`~/ssh_keys_backup.tar.gz*`)
+- Temporary files in home directory
+
+### Usage
+
+```bash
+# Standard uninstall with double confirmation
+max uninstall
+
+# Skip confirmations (NOT RECOMMENDED - dangerous)
+max uninstall --force
+```
+
+### Confirmation Process
+
+The uninstall command requires **double confirmation** to prevent accidental deletion:
+
+1. **First confirmation**: Type `yes` when prompted
+2. **Second confirmation**: Type `DELETE EVERYTHING` exactly as shown
+
+Example interaction:
+
+```bash
+$ max uninstall
+
+🗑️  MaxCLI Uninstaller
+==================================================
+🚨 WARNING: This will completely remove MaxCLI from your system!
+📋 The following will be permanently deleted:
+   • Configuration directory (~/.config/maxcli/)
+   • MaxCLI library (~/.local/lib/python/maxcli/)
+   • MaxCLI executable (~/bin/max)
+
+💡 This includes:
+   • All your personal configurations
+   • SSH target profiles and connections
+   • API keys and authentication settings
+   • Module configurations and preferences
+
+============================================================
+⚡ Are you absolutely sure you want to uninstall MaxCLI? (type 'yes' to confirm): yes
+
+🔥 FINAL WARNING: This action is IRREVERSIBLE!
+📝 You will need to re-run the bootstrap script to reinstall MaxCLI.
+🗑️  Type 'DELETE EVERYTHING' to proceed with uninstallation: DELETE EVERYTHING
+
+🚀 Beginning MaxCLI uninstallation...
+```
+
+### Force Mode
+
+**⚠️ DANGER: Use with extreme caution**
+
+The `--force` flag skips all confirmations and immediately removes MaxCLI:
+
+```bash
+max uninstall --force
+```
+
+This is intended for automated scripts only. **Never use this flag interactively** unless you are absolutely certain you want to remove MaxCLI without any safety checks.
+
+### After Uninstallation
+
+After uninstalling MaxCLI:
+
+1. **Restart your terminal** or run `source ~/.zshrc` to update your PATH
+2. The `max` command will no longer be available
+3. All your configurations and customizations are permanently lost
+
+### Reinstalling After Uninstall
+
+To reinstall MaxCLI after uninstalling:
+
+```bash
+# Reinstall with the bootstrap script
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
+
+# Or with your preferred modules
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager"
+```
+
+You will need to reconfigure everything using `max init` and re-enable your preferred modules.
 
 ## 📚 Module Documentation
 
@@ -413,10 +528,10 @@ Or manually edit `~/.config/maxcli/max_modules.json`:
 
 ```bash
 # Get help with bootstrap options
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --help
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --help
 
 # Test standalone download capability
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager"
 
 # Force fresh download (clears any cached/problematic files)
 ./bootstrap.sh --force-download
@@ -429,11 +544,11 @@ curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh |
 
 ```bash
 # Manual verification of download URLs
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/requirements.txt
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/main.py
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/requirements.txt
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/main.py
 
 # Check if repository archive is accessible
-curl -fsSL https://github.com/yourusername/maxcli/archive/main.tar.gz | tar -tz | head -10
+curl -fsSL https://github.com/maximilianls98/maxcli/archive/main.tar.gz | tar -tz | head -10
 ```
 
 #### PATH and Shell Issues
@@ -478,9 +593,13 @@ max init --force
 rm ~/.config/maxcli/max_modules.json
 max modules list  # This will recreate with defaults
 
-# Complete reinstallation
-rm -rf ~/.venvs/maxcli ~/.config/maxcli ~/bin/max
-curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
+# Complete reinstallation (RECOMMENDED)
+max uninstall  # Use built-in uninstall with safety checks
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
+
+# Manual removal (NOT RECOMMENDED - use max uninstall instead)
+# rm -rf ~/.venvs/maxcli ~/.config/maxcli ~/bin/max
+# curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
 ```
 
 ### Common Issues
@@ -496,10 +615,10 @@ curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.
 
     ```bash
     # Try with explicit repo and branch
-    curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourusername/maxcli" --github-branch "main"
+    curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --github-repo "maximilianls98/maxcli" --github-branch "main"
 
     # Or clone locally first
-    git clone https://github.com/yourusername/maxcli.git
+    git clone https://github.com/maximilianls98/maxcli.git
     cd maxcli
     ./bootstrap.sh
     ```
@@ -542,6 +661,11 @@ curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.
 6. **Configuration issues**: Reset configuration files
 
     ```bash
+    # Use built-in uninstall for complete reset (RECOMMENDED)
+    max uninstall
+    curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
+
+    # Or manual configuration reset
     rm -rf ~/.config/maxcli/
     max init
     ```
@@ -582,7 +706,7 @@ bash -x ./bootstrap.sh --modules "ssh_manager"
 
 ```bash
 # Clone and install in development mode
-git clone https://github.com/yourusername/maxcli.git
+git clone https://github.com/maximilianls98/maxcli.git
 cd maxcli
 pip install -e .
 
