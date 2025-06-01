@@ -1,0 +1,2 @@
+[console_scripts]
+max = maxcli.cli:main
