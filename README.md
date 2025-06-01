@@ -615,3 +615,9 @@ MIT License - see LICENSE file for details.
 - Create an issue on GitHub
 - Check the troubleshooting section
 - Review module documentation
+
+if for some reason the max command only responds with mock responses after running the test_bootstrap.sh script, you can run the following command to reset the max command to the original state:
+```bash
+cp -r maxcli ~/.local/lib/python/
+```
+

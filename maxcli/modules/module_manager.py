@@ -52,8 +52,8 @@ AVAILABLE_MODULES = {
         "commands": ["setup"]
     },
     "misc_manager": {
-        "description": "Database backup utilities and application deployment tools",
-        "commands": ["backup-db", "deploy-app"]
+        "description": "Database backup utilities, CSV data processing, and application deployment tools",
+        "commands": ["backup-db", "deploy-app", "process-csv"]
     }
 }
 

@@ -4,11 +4,12 @@ Miscellaneous Manager Module for MaxCLI.
 This module provides miscellaneous utility functionality including:
 - Database backup operations
 - Application deployment utilities
+- CSV data processing with Python functions
 - Other utility commands
 """
 
 import argparse
-from maxcli.commands.misc import backup_db, deploy_app
+from maxcli.commands.misc import backup_db, deploy_app, process_csv_data
 
 
 def register_commands(subparsers) -> None:
@@ -63,4 +64,70 @@ Example:
   max deploy-app                  # Run deployment process
         """
     )
-    deploy_parser.set_defaults(func=deploy_app) 
+    deploy_parser.set_defaults(func=deploy_app)
+
+    # CSV data processing command
+    csv_parser = subparsers.add_parser(
+        'process-csv',
+        help='Process CSV data using a Python function file',
+        description="""
+Process CSV data by applying a Python function to the dataset.
+
+The Python function file must contain a function named 'process_data' that accepts
+a pandas DataFrame as input and returns the processed result. The function can
+perform any data analysis, transformation, or computation on the dataset.
+
+You can optionally save the function file for future use by providing the --save-as
+option. Saved functions are stored in the maxcli/saved_functions directory and can
+be listed using the --list-saved option.
+
+Requirements:
+- pandas library must be installed
+- Function file must contain a 'process_data' function
+- CSV file must be valid and readable
+
+Function File Format:
+The Python file should follow this pattern:
+
+    import pandas as pd
+    
+    def process_data(df: pd.DataFrame):
+        # Your data processing logic here
+        # Examples:
+        # - return df.describe()  # Statistical summary
+        # - return df.groupby('column').sum()  # Grouping
+        # - return df[df['value'] > threshold]  # Filtering
+        return processed_result
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max process-csv --csv-file data.csv --function-file analysis.py
+  max process-csv --csv-file sales.csv --function-file stats.py --save-as sales_analysis
+  max process-csv --list-saved                      # List saved functions
+        """
+    )
+    
+    # Add arguments for CSV processing command
+    csv_parser.add_argument(
+        '--csv-file', 
+        type=str,
+        help='Path to the CSV data file to process'
+    )
+    csv_parser.add_argument(
+        '--function-file', 
+        type=str,
+        help='Path to the Python file containing the processing function'
+    )
+    csv_parser.add_argument(
+        '--save-as', 
+        type=str,
+        help='Save the function file with this name for future use'
+    )
+    csv_parser.add_argument(
+        '--list-saved', 
+        action='store_true',
+        help='List all saved function files'
+    )
+    
+    csv_parser.set_defaults(func=process_csv_data) 

@@ -359,6 +359,86 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
         return False
 
 
+def disable_password_authentication(target: Dict[str, str]) -> bool:
+    """Disable password authentication on remote SSH server.
+    
+    Args:
+        target: SSH target configuration dictionary
+        
+    Returns:
+        True if password authentication was disabled successfully, False otherwise
+    """
+    commands_to_run = [
+        # Backup the original sshd_config
+        "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)",
+        
+        # Disable password authentication and related settings
+        "sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config",
+        "sudo sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config",
+        "sudo sed -i 's/^#*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config",
+        
+        # Test the configuration
+        "sudo sshd -t",
+        
+        # Restart SSH service (try multiple service managers)
+        "(sudo systemctl restart sshd || sudo systemctl restart ssh || sudo service sshd restart || sudo service ssh restart)"
+    ]
+    
+    # Build SSH command to run all commands remotely
+    ssh_cmd = [
+        "ssh",
+        "-i", target["key"],
+        "-p", str(target["port"]),
+        f"{target['user']}@{target['host']}",
+        " && ".join(commands_to_run)
+    ]
+    
+    print(f"🔧 Disabling password authentication on {target['host']}...")
+    print("   Creating backup of sshd_config...")
+    print("   Updating SSH daemon configuration...")
+    print("   Restarting SSH service...")
+    
+    try:
+        result = subprocess.run(ssh_cmd)
+        
+        if result.returncode == 0:
+            print("✅ Password authentication disabled successfully!")
+            print("⚠️  Important: SSH key authentication is now required for future connections.")
+            print("   Make sure you can still connect with your key before closing this session.")
+            return True
+        else:
+            print(f"❌ Failed to disable password authentication (exit code: {result.returncode})")
+            print("   The SSH configuration backup was created but changes may not have been applied.")
+            return False
+            
+    except subprocess.SubprocessError as e:
+        print(f"Error: Failed to execute SSH command: {e}")
+        return False
+
+
+def prompt_user_for_password_disable() -> bool:
+    """Prompt user whether they want to disable password authentication.
+    
+    Returns:
+        True if user wants to disable password authentication, False otherwise
+    """
+    try:
+        print("\n🔐 Security Recommendation:")
+        print("   Now that SSH key authentication is set up, you can disable password authentication")
+        print("   for enhanced security. This prevents brute force attacks on your server.")
+        print()
+        print("   ⚠️  WARNING: Only proceed if you're confident your SSH key works!")
+        print("   Test your key connection first in another terminal if needed.")
+        print()
+        
+        response = input("Disable password authentication on this server? [y/N]: ").strip().lower()
+        return response in ['y', 'yes']
+        
+    except (KeyboardInterrupt, EOFError):
+        print("\nSkipping password authentication configuration.")
+        return False
+
+
 def copy_public_key(name: str) -> bool:
     """Copy public key to the server using ssh-copy-id.
     
@@ -399,6 +479,14 @@ def copy_public_key(name: str) -> bool:
         
         if result.returncode == 0:
             print(f"✅ Public key copied successfully to {name}")
+            
+            # Prompt user about disabling password authentication
+            if prompt_user_for_password_disable():
+                disable_password_authentication(target)
+            else:
+                print("💡 You can manually disable password authentication later by editing /etc/ssh/sshd_config")
+                print("   Set: PasswordAuthentication no, ChallengeResponseAuthentication no, UsePAM no")
+            
             return True
         else:
             print(f"Error: Failed to copy public key (exit code: {result.returncode})")
