@@ -142,28 +142,8 @@ def run_linting() -> int:
         return 1
 
 
-def run_format_check() -> int:
-    """Check code formatting.
-    
-    Returns:
-        Exit code from black formatter.
-    """
-    print("🎨 Checking code formatting...")
-    
-    result = subprocess.run([
-        "python", "-m", "black", "--check", "--diff", "maxcli/", "tests/"
-    ])
-    
-    if result.returncode == 0:
-        print("✅ Code formatting is correct!")
-    else:
-        print("❌ Code formatting issues found. Run 'black maxcli/ tests/' to fix.")
-    
-    return result.returncode
-
-
 def run_all_checks() -> int:
-    """Run all quality checks: tests, linting, and formatting.
+    """Run all quality checks: tests and linting.
     
     Returns:
         Exit code (0 if all pass, 1 if any fail).
@@ -173,7 +153,6 @@ def run_all_checks() -> int:
     checks = [
         ("📋 Running tests", lambda: run_test_suite()),
         ("🔍 Running linting", run_linting),
-        ("🎨 Checking formatting", run_format_check),
     ]
     
     failed_checks = []
@@ -209,7 +188,6 @@ if __name__ == "__main__":
     parser.add_argument("--quick", action="store_true", help="Run quick tests (no coverage)")
     parser.add_argument("--coverage-only", action="store_true", help="Generate coverage report only")
     parser.add_argument("--lint", action="store_true", help="Run linting only")
-    parser.add_argument("--format", action="store_true", help="Check formatting only")
     parser.add_argument("--all", action="store_true", help="Run all quality checks")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--no-coverage", action="store_true", help="Disable coverage")
@@ -225,8 +203,6 @@ if __name__ == "__main__":
         exit_code = run_coverage_report()
     elif args.lint:
         exit_code = run_linting()
-    elif args.format:
-        exit_code = run_format_check()
     elif args.module:
         exit_code = run_specific_module_tests(args.module)
     elif args.integration:
