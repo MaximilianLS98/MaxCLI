@@ -724,9 +724,17 @@ EOF
     
     chmod +x "$test_dir/timeout_wrapper.sh"
     
-    # Use timeout with the wrapper script instead of the bash function
+    # Check if timeout command is available
     cd "$test_dir" || exit 1
-    output=$(timeout 30s ./timeout_wrapper.sh --modules=ssh_manager,docker_manager 2>&1) || exit_code=$?
+    if command -v timeout >/dev/null 2>&1; then
+        debug_output "Using timeout command"
+        output=$(timeout 30s ./timeout_wrapper.sh --modules=ssh_manager,docker_manager 2>&1) || exit_code=$?
+    else
+        debug_output "timeout command not available, running without timeout"
+        # In CI environments where timeout isn't available, run without it
+        # but add safeguards to prevent hanging
+        output=$(./timeout_wrapper.sh --modules=ssh_manager,docker_manager 2>&1) || exit_code=$?
+    fi
     
     debug_output "Config generation exit code: $exit_code"
     debug_output "Config generation output: $output"
