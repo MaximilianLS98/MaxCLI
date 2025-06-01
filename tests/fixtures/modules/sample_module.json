@@ -1,0 +1,33 @@
+{
+	"name": "sample_module",
+	"version": "1.0.0",
+	"description": "A sample module for testing purposes",
+	"author": "MaxCLI Testing Framework",
+	"enabled": true,
+	"commands": [
+		{
+			"name": "sample",
+			"description": "Sample command for testing",
+			"function": "sample_command",
+			"arguments": [
+				{
+					"name": "--test",
+					"type": "str",
+					"help": "Test argument",
+					"required": false
+				}
+			]
+		}
+	],
+	"dependencies": [],
+	"entry_point": "sample_module.main",
+	"config_schema": {
+		"type": "object",
+		"properties": {
+			"test_setting": {
+				"type": "string",
+				"default": "default_value"
+			}
+		}
+	}
+}

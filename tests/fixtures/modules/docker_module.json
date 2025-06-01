@@ -1,0 +1,61 @@
+{
+	"name": "docker_manager",
+	"version": "1.0.0",
+	"description": "Docker management module for MaxCLI",
+	"author": "MaxCLI Development Team",
+	"enabled": true,
+	"commands": [
+		{
+			"name": "docker",
+			"description": "Docker management commands",
+			"subcommands": [
+				{
+					"name": "ps",
+					"description": "List running containers",
+					"function": "list_containers"
+				},
+				{
+					"name": "start",
+					"description": "Start a container",
+					"function": "start_container",
+					"arguments": [
+						{
+							"name": "container",
+							"type": "str",
+							"help": "Container name or ID",
+							"required": true
+						}
+					]
+				},
+				{
+					"name": "stop",
+					"description": "Stop a container",
+					"function": "stop_container",
+					"arguments": [
+						{
+							"name": "container",
+							"type": "str",
+							"help": "Container name or ID",
+							"required": true
+						}
+					]
+				}
+			]
+		}
+	],
+	"dependencies": ["docker"],
+	"entry_point": "maxcli.modules.docker_manager",
+	"config_schema": {
+		"type": "object",
+		"properties": {
+			"docker_host": {
+				"type": "string",
+				"default": "unix:///var/run/docker.sock"
+			},
+			"timeout": {
+				"type": "integer",
+				"default": 30
+			}
+		}
+	}
+}

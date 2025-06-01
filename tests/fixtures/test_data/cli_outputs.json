@@ -1,0 +1,45 @@
+{
+	"help_outputs": {
+		"main_help": "MaxCLI - Modular Command Line Interface\n\nUsage:\n  maxcli [command] [options]\n\nAvailable commands:\n  config    Configuration management\n  module    Module management\n  help      Show help information\n\nFor more information on a command, use: maxcli [command] --help",
+
+		"module_help": "Module management commands\n\nUsage:\n  maxcli module [subcommand] [options]\n\nSubcommands:\n  list      List available modules\n  enable    Enable a module\n  disable   Disable a module\n  install   Install a new module\n  remove    Remove a module",
+
+		"config_help": "Configuration management commands\n\nUsage:\n  maxcli config [subcommand] [options]\n\nSubcommands:\n  get       Get configuration value\n  set       Set configuration value\n  list      List all configuration values\n  reset     Reset configuration to defaults"
+	},
+
+	"command_outputs": {
+		"module_list": [
+			{
+				"name": "docker_manager",
+				"version": "1.0.0",
+				"enabled": true,
+				"description": "Docker management module"
+			},
+			{
+				"name": "file_manager",
+				"version": "1.2.1",
+				"enabled": false,
+				"description": "File management utilities"
+			}
+		],
+
+		"docker_ps": [
+			{
+				"container_id": "abc123",
+				"image": "nginx:latest",
+				"command": "nginx -g 'daemon off;'",
+				"created": "2 hours ago",
+				"status": "Up 2 hours",
+				"ports": "80/tcp",
+				"names": "web-server"
+			}
+		]
+	},
+
+	"error_outputs": {
+		"module_not_found": "Error: Module 'nonexistent_module' not found",
+		"invalid_command": "Error: Unknown command 'invalid_cmd'",
+		"permission_denied": "Error: Permission denied accessing configuration file",
+		"docker_not_available": "Error: Docker is not available or not running"
+	}
+}
