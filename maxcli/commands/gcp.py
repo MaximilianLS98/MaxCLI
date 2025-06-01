@@ -2,7 +2,7 @@
 import os
 import sys
 import subprocess
-from typing import List
+from typing import List, Optional
 
 from ..config import get_quota_project_mappings, load_config, save_config
 from ..utils.interactive import interactive_selection
@@ -16,6 +16,21 @@ def get_available_configs() -> List[str]:
             if f.startswith("adc_") and f.endswith(".json"):
                 configs.append(f[4:-5])  # Remove "adc_" prefix and ".json" suffix
     return sorted(configs)
+
+def get_active_config() -> Optional[str]:
+    """Get the currently active gcloud configuration."""
+    try:
+        result = subprocess.run(
+            ["gcloud", "config", "configurations", "list", "--filter=is_active:true", "--format=value(name)"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        active_config = result.stdout.strip()
+        return active_config if active_config else None
+    except subprocess.CalledProcessError:
+        # If gcloud command fails, we can't determine the active config
+        return None
 
 def interactive_config_selection() -> str:
     """Show interactive menu for config selection."""
@@ -147,13 +162,33 @@ def setup_quota_project(config_name: str):
         print("Skipping quota project setup.")
 
 def list_configs(_args):
-    """List all available gcloud configurations with ADC files."""
+    """List all available gcloud configurations with ADC files, showing which is currently active."""
     print("Available configs with ADC files:")
     configs = get_available_configs()
     
     if not configs:
         print("  (No configurations found)")
         print("💡 Create a new configuration with: max gcp config create <name>")
+        return
+    
+    # Get the currently active configuration
+    active_config = get_active_config()
+    
+    # Display configurations with active indicator
+    for config in configs:
+        if config == active_config:
+            print(f"  {config} ✅ (active)")
+        else:
+            print(f"  {config}")
+    
+    # Show summary
+    print()
+    if active_config:
+        if active_config in configs:
+            print(f"📍 Currently active: {active_config}")
+        else:
+            print(f"📍 Currently active: {active_config} (no ADC file found)")
+            print("💡 Consider running 'max gcp config switch' to use a configuration with ADC")
     else:
-        for config in configs:
-            print(f"  {config}") 
+        print("⚠️  Could not determine active configuration")
+        print("💡 Make sure gcloud is installed and configured") 
