@@ -100,11 +100,45 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
-addopts = "-ra -q --strict-markers --strict-config"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "-q", 
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+    "--cov=maxcli",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-fail-under=20",
+    "-n",
+    "auto"
+]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests"
+    "integration: marks tests as integration tests", 
+    "unit: marks tests as unit tests",
+    "docker: marks tests that require Docker",
+    "network: marks tests that require network access"
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::pytest.PytestDeprecationWarning",
+    "ignore::DeprecationWarning"
+]
+norecursedirs = [
+    ".git",
+    ".tox", 
+    "dist",
+    "build",
+    "*.egg",
+    ".venv",
+    "venv",
+    "htmlcov"
 ]
 
 [tool.coverage.run]

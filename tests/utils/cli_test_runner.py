@@ -41,7 +41,9 @@ def run_test_suite(
         cmd.extend([
             "--cov=maxcli",
             "--cov-report=html",
-            "--cov-report=term-missing"
+            "--cov-report=term-missing",
+            "--cov-report=xml",
+            "--cov-fail-under=0"  # Don't fail on low coverage in CI
         ])
     
     if parallel:
@@ -51,7 +53,6 @@ def run_test_suite(
     cmd.extend([
         "--tb=short",  # Shorter tracebacks
         "--strict-markers",  # Require marker registration
-        "--disable-warnings"  # Reduce noise
     ])
     
     return subprocess.run(cmd).returncode
