@@ -2,26 +2,28 @@
 import sys
 import subprocess
 
-def docker_clean(_args):
+
+def docker_clean_extensive() -> None:
     """Perform aggressive Docker cleanup."""
-    print("Cleaning up Docker system...")
+    print("🧹 Performing extensive Docker cleanup...")
     try:
         subprocess.run(["docker", "system", "prune", "-af"], check=True)
-        print("✅ Docker cleanup completed!")
+        print("✅ Extensive Docker cleanup completed!")
     except subprocess.CalledProcessError as e:
         print(f"❌ Error during Docker cleanup: {e}", file=sys.stderr)
         sys.exit(1)
 
-def docker_tidy(_args):
+
+def docker_clean_minimal() -> None:
     """
     Perform a gentle Docker cleanup that only removes truly unused items.
     
-    This is a safer alternative to docker-clean that preserves:
+    This is a safer alternative to extensive cleanup that preserves:
     - All images that might be reused
     - Recent containers (only removes containers stopped >24h ago)
     - Volumes (never touches volumes)
     """
-    print("Performing gentle Docker cleanup...")
+    print("🧹 Performing minimal Docker cleanup...")
     
     try:
         # Remove containers that have been stopped for more than 24 hours
@@ -50,9 +52,39 @@ def docker_tidy(_args):
             "--filter", "until=168h"  # 7 days = 168 hours
         ], check=True)
         
-        print("✅ Gentle Docker cleanup completed!")
-        print("💡 For aggressive cleanup, use 'max docker-clean'")
+        print("✅ Minimal Docker cleanup completed!")
+        print("💡 For extensive cleanup, use 'max docker clean --extensive'")
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Error during Docker cleanup: {e}", file=sys.stderr)
-        sys.exit(1) 
+        sys.exit(1)
+
+
+def docker_clean_command(args) -> None:
+    """
+    Handle the docker clean command with appropriate cleanup level.
+    
+    Args:
+        args: Parsed command arguments containing cleanup level flags.
+    """
+    # Determine cleanup level - extensive takes precedence if both are set
+    if args.extensive:
+        docker_clean_extensive()
+    elif args.minimal:
+        docker_clean_minimal()
+    else:
+        # Default to minimal for safety
+        print("⚠️  No cleanup level specified, defaulting to minimal cleanup.")
+        print("   Use --extensive for aggressive cleanup or --minimal for explicit minimal cleanup.")
+        docker_clean_minimal()
+
+
+# Legacy functions for backward compatibility during transition
+def docker_clean(_args):
+    """Legacy function for backward compatibility."""
+    docker_clean_extensive()
+
+
+def docker_tidy(_args):
+    """Legacy function for backward compatibility."""
+    docker_clean_minimal() 
