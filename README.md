@@ -12,17 +12,17 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 
 ## 📦 Available Modules
 
-| Module               | Description                          | Key Commands                                         |
-| -------------------- | ------------------------------------ | ---------------------------------------------------- |
-| `ssh_manager`        | SSH connection and target management | `ssh list-targets`, `ssh add-target`, `ssh connect`  |
-| `ssh_backup`         | SSH-based backup operations          | `ssh-backup`, `ssh-restore`                          |
-| `ssh_rsync`          | SSH rsync synchronization            | `ssh-rsync-push`, `ssh-rsync-pull`                   |
-| `coolify_manager`    | Coolify instance management          | `coolify status`, `coolify services`, `coolify apps` |
-| `gcp_manager`        | Google Cloud Platform utilities      | `switch-config`, `create-config`, `list-configs`     |
-| `docker_manager`     | Docker system management             | `docker clean --extensive`, `docker clean --minimal` |
-| `kubernetes_manager` | Kubernetes context switching         | `kctx <context>`                                     |
-| `setup_manager`      | Development environment setup        | `setup minimal`, `setup dev-full`, `setup apps`      |
-| `misc_manager`       | Miscellaneous utilities              | `backup-db`, `deploy-app`                            |
+| Module               | Description                          | Key Commands                                          |
+| -------------------- | ------------------------------------ | ----------------------------------------------------- |
+| `ssh_manager`        | SSH connection and target management | `ssh list-targets`, `ssh add-target`, `ssh connect`   |
+| `ssh_backup`         | SSH-key backup operations            | `ssh-backup export`, `ssh-backup import`              |
+| `ssh_rsync`          | SSH backup rsync synchronization     | `ssh-rsync upload-backup`, `ssh-rsync download-backup`|
+| `coolify_manager`    | Coolify instance management          | `coolify status`, `coolify services`, `coolify apps`  |
+| `gcp_manager`        | Google Cloud Platform utilities      | `switch-config`, `create-config`, `list-configs`      |
+| `docker_manager`     | Docker system management             | `docker clean --extensive`, `docker clean --minimal`  | 
+| `kubernetes_manager` | Kubernetes context switching         | `kctx <context>`                                      |
+| `setup_manager`      | Development environment setup        | `setup minimal`, `setup dev-full`, `setup apps`       |
+| `misc_manager`       | Miscellaneous utilities              | `backup-db`, `deploy-app`                             |
 
 ## 🛠 Installation
 

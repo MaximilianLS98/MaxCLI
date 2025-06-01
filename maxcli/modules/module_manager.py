@@ -25,11 +25,11 @@ AVAILABLE_MODULES = {
     },
     "ssh_backup": {
         "description": "SSH key backup and restore with GPG encryption",
-        "commands": ["ssh-backup", "ssh-restore"]
+        "commands": ["ssh-backup export", "ssh-backup import"]
     },
     "ssh_rsync": {
         "description": "SSH-based rsync operations and remote backup",
-        "commands": ["ssh-rsync-push", "ssh-rsync-pull"]
+        "commands": ["ssh-rsync upload-backup", "ssh-rsync download-backup"]
     },
     "docker_manager": {
         "description": "Docker system management and cleanup",

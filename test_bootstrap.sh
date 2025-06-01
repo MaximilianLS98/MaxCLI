@@ -72,7 +72,14 @@ create_test_environment() {
     local test_dir="$1"
     mkdir -p "$test_dir"
     
-    # Create mock files for local mode testing
+    # SAFETY: Ensure we never accidentally overwrite real installations
+    if [[ "$test_dir" == *"$HOME"* ]] && [[ "$test_dir" != *"/tmp/"* ]]; then
+        echo "❌ SAFETY ERROR: Test directory '$test_dir' is too close to home directory"
+        echo "💡 Test directories must be in /tmp/ to prevent accidental overwrites"
+        exit 1
+    fi
+    
+    # Create mock files for local mode testing - ONLY in isolated test directory
     cat > "$test_dir/requirements.txt" << 'EOF'
 questionary>=1.10.0
 click>=8.0.0
@@ -81,24 +88,27 @@ EOF
 
     cat > "$test_dir/main.py" << 'EOF'
 #!/usr/bin/env python3
-"""Mock main.py for testing"""
-print("MaxCLI Test Version")
+"""Mock main.py for testing - ISOLATED TEST VERSION"""
+print("MaxCLI Test Version - ISOLATED")
 EOF
 
     mkdir -p "$test_dir/maxcli"
     cat > "$test_dir/maxcli/__init__.py" << 'EOF'
-"""Mock maxcli package for testing"""
+"""Mock maxcli package for testing - ISOLATED TEST VERSION"""
 EOF
 
     cat > "$test_dir/maxcli/cli.py" << 'EOF'
-"""Mock CLI module for testing"""
+"""Mock CLI module for testing - ISOLATED TEST VERSION"""
 def main():
-    print("MaxCLI Mock CLI")
+    print("MaxCLI Mock CLI - ISOLATED TEST VERSION")
 EOF
 
     # Copy bootstrap script to test directory
     cp "$BOOTSTRAP_SCRIPT" "$test_dir/bootstrap.sh"
     chmod +x "$test_dir/bootstrap.sh"
+    
+    # Add safety warning to any bootstrap scripts we create
+    echo "# WARNING: This is a test script - do not use for real installation" >> "$test_dir/bootstrap.sh"
 }
 
 # Pure function: Clean up test environment

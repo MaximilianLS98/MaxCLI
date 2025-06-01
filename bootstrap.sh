@@ -452,13 +452,13 @@ cat > ~/.config/maxcli/max_modules.json << EOF
     "ssh_backup": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " ssh_backup " ]]; then echo "true"; else echo "false"; fi),
       "description": "SSH key backup and restore with GPG encryption",
-      "commands": ["ssh-backup", "ssh-restore"],
+      "commands": ["ssh-backup export", "ssh-backup import"],
       "dependencies": ["gpg"]
     },
     "ssh_rsync": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " ssh_rsync " ]]; then echo "true"; else echo "false"; fi),
       "description": "SSH-based rsync operations and remote backup",
-      "commands": ["ssh-rsync-push", "ssh-rsync-pull"],
+      "commands": ["ssh-rsync upload-backup", "ssh-rsync download-backup"],
       "dependencies": ["rsync"]
     },
     "docker_manager": {
