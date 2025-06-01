@@ -11,37 +11,30 @@ import json
 import importlib
 import argparse
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
+from datetime import datetime, timezone
 
 # Configuration constants
 CONFIG_DIR = Path.home() / ".config" / "maxcli"
-MODULES_CONFIG_FILE = CONFIG_DIR / "max_modules.json"
+MODULES_CONFIG_FILE = CONFIG_DIR / "modules_config.json"
 
-# Available modules with their descriptions
+# Available modules and their metadata
 AVAILABLE_MODULES = {
     "ssh_manager": {
-        "description": "SSH connection and target management",
-        "commands": ["ssh"]
-    },
-    "ssh_backup": {
-        "description": "SSH key backup and restore with GPG encryption",
-        "commands": ["ssh-backup export", "ssh-backup import"]
-    },
-    "ssh_rsync": {
-        "description": "SSH-based rsync operations and remote backup",
-        "commands": ["ssh-rsync upload-backup", "ssh-rsync download-backup"]
+        "description": "SSH connection and target management with key generation and profiles",
+        "commands": ["ssh", "ssh-key", "ssh-config"]
     },
     "docker_manager": {
-        "description": "Docker system management and cleanup",
+        "description": "Docker container management, image operations, and development environments",
         "commands": ["docker"]
     },
     "kubernetes_manager": {
         "description": "Kubernetes context switching and cluster management",
-        "commands": ["kctx"]
+        "commands": ["kctx", "kubectl", "k8s"]
     },
     "gcp_manager": {
         "description": "Google Cloud Platform configuration and authentication management",
-        "commands": ["gcp"]
+        "commands": ["gcp", "gcloud"]
     },
     "coolify_manager": {
         "description": "Coolify instance management through REST API",
@@ -54,6 +47,34 @@ AVAILABLE_MODULES = {
     "misc_manager": {
         "description": "Database backup utilities, CSV data processing, and application deployment tools",
         "commands": ["backup-db", "deploy-app", "process-csv"]
+    },
+    "ssh_backup": {
+        "description": "SSH key backup and restore with GPG encryption",
+        "commands": ["ssh-backup"]
+    },
+    "ssh_rsync": {
+        "description": "Remote backup synchronization using rsync over SSH",
+        "commands": ["rsync-backup"]
+    },
+    "terraform_manager": {
+        "description": "Terraform infrastructure management and automation",
+        "commands": ["terraform", "tf"]
+    },
+    "aws_manager": {
+        "description": "Amazon Web Services resource management and utilities",
+        "commands": ["aws"]
+    },
+    "database_manager": {
+        "description": "Database connection management and backup utilities",
+        "commands": ["db", "database"]
+    },
+    "monitoring": {
+        "description": "System monitoring, alerting, and health check utilities",
+        "commands": ["monitor", "health"]
+    },
+    "deployment": {
+        "description": "Application deployment automation and CI/CD integration",
+        "commands": ["deploy"]
     }
 }
 
@@ -66,7 +87,7 @@ def ensure_config_directory() -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def update_module_info_if_needed(config: Dict) -> bool:
+def update_module_info_if_needed(config: Dict[str, Any]) -> bool:
     """Update module_info with any missing modules or fields while preserving existing data.
     
     Args:
@@ -122,7 +143,7 @@ def update_module_info_if_needed(config: Dict) -> bool:
     return modified
 
 
-def load_modules_config() -> Dict:
+def load_modules_config() -> Dict[str, Any]:
     """Load module configuration from JSON file.
     
     Returns:
@@ -153,8 +174,15 @@ def load_modules_config() -> Dict:
         if legacy_flags_found:
             print("🧹 Cleaned up legacy module flags from configuration.")
         
-        # Update module_info if needed, preserving existing data
-        config_modified = update_module_info_if_needed(config)
+        # Only update module_info if it's completely missing
+        # This preserves existing configurations for roundtrip compatibility
+        needs_update = False
+        if "module_info" not in config:
+            needs_update = True
+        
+        config_modified = False
+        if needs_update:
+            config_modified = update_module_info_if_needed(config)
         
         # Save if we cleaned up legacy flags or updated module_info
         if legacy_flags_found or config_modified:
@@ -168,14 +196,14 @@ def load_modules_config() -> Dict:
         return create_default_config()
 
 
-def create_default_config() -> Dict:
+def create_default_config() -> Dict[str, Any]:
     """Create default module configuration."""
     config = create_config_with_modules(DEFAULT_ENABLED_MODULES)
     save_modules_config(config)
     return config
 
 
-def create_config_with_modules(enabled_modules: List[str]) -> Dict:
+def create_config_with_modules(enabled_modules: List[str]) -> Dict[str, Any]:
     """Create configuration with specified enabled modules using bootstrap-compatible format."""
     from datetime import datetime
     
@@ -192,12 +220,12 @@ def create_config_with_modules(enabled_modules: List[str]) -> Dict:
     return {
         "enabled_modules": enabled_modules,
         "module_info": module_info,
-        "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "bootstrap_version": "1.0.0"
     }
 
 
-def save_modules_config(config: Dict) -> bool:
+def save_modules_config(config: Dict[str, Any]) -> bool:
     """Save module configuration to JSON file.
     
     Args:

@@ -301,36 +301,53 @@ def export_ssh_keys() -> bool:
 
 
 def select_backup_file() -> Optional[Path]:
-    """Interactive selection of backup file to import.
+    """Interactively select a backup file to import.
     
     Returns:
-        Path to selected backup file or None if cancelled
+        Path to selected backup file, or None if selection cancelled/failed
     """
-    home_dir = Path.home()
+    # Find available backup files
+    backup_files = []
     
-    # Find .tar.gz.gpg files in home directory
-    backup_files = list(home_dir.glob("*.tar.gz.gpg"))
+    # Look for backup files in common locations
+    search_locations = [
+        Path.home(),
+        Path.home() / "Downloads",
+        Path.home() / "Documents",
+        Path.home() / "Desktop"
+    ]
+    
+    for location in search_locations:
+        if location.exists():
+            backup_files.extend(location.glob("ssh_keys_backup*.tar.gz.gpg"))
+    
+    # Remove duplicates and sort
+    backup_files = sorted(set(backup_files), key=lambda p: p.stat().st_mtime, reverse=True)
     
     if not backup_files:
-        # Allow manual file path input
-        try:
-            file_path = input("Enter path to encrypted backup file (.tar.gz.gpg): ").strip()
-            if file_path:
-                backup_path = Path(file_path).expanduser()
-                if backup_path.exists():
-                    return backup_path
-                else:
-                    print(f"Error: File not found: {backup_path}")
-            return None
-        except (KeyboardInterrupt, EOFError):
-            print("\nSelection cancelled.")
-            return None
+        print("📁 No SSH backup files found in common locations.")
+        custom_path = input("Enter path to backup file (or press Enter to cancel): ").strip()
+        
+        if custom_path:
+            backup_path = Path(custom_path).expanduser()
+            return backup_path if backup_path.exists() else None
+        return None
+    
+    print(f"📁 Found {len(backup_files)} backup file(s):")
     
     try:
         import questionary
         
-        choices = [questionary.Choice(title=f.name, value=f) for f in backup_files]
-        choices.append(questionary.Choice(title="Enter custom path...", value=None))
+        # Create choices with file info
+        choices = []
+        for backup_file in backup_files:
+            stat = backup_file.stat()
+            size_mb = stat.st_size / (1024 * 1024)
+            from datetime import datetime
+            mod_time = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M')
+            choices.append(f"{backup_file.name} ({size_mb:.1f}MB, {mod_time})")
+        
+        choices.append("Enter custom path...")
         
         selected = questionary.select(
             "Select backup file to import:",
@@ -338,13 +355,21 @@ def select_backup_file() -> Optional[Path]:
         ).ask()
         
         if selected is None:
+            return None
+        elif selected == "Enter custom path...":
             # Custom path option
             file_path = questionary.text("Enter path to backup file:").ask()
             if file_path:
                 backup_path = Path(file_path).expanduser()
                 return backup_path if backup_path.exists() else None
-        
-        return selected
+            return None
+        else:
+            # Find the selected file by name
+            selected_name = selected.split(" (")[0]
+            for backup_file in backup_files:
+                if backup_file.name == selected_name:
+                    return backup_file
+            return None
         
     except ImportError:
         # Fallback to numbered selection
@@ -364,6 +389,7 @@ def select_backup_file() -> Optional[Path]:
                     if file_path:
                         backup_path = Path(file_path).expanduser()
                         return backup_path if backup_path.exists() else None
+                    return None
                 elif 0 <= index < len(backup_files):
                     return backup_files[index]
             

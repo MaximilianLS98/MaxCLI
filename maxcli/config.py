@@ -19,7 +19,8 @@ def load_config() -> Dict[str, Any]:
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r') as f:
-                return json.load(f)
+                content = json.load(f)
+                return content if isinstance(content, dict) else {}
         except (json.JSONDecodeError, IOError) as e:
             print(f"⚠️ Warning: Could not load config file: {e}")
             return {}
@@ -50,7 +51,8 @@ def get_config_value(key: str, default: Any = None) -> Any:
 def get_quota_project_mappings() -> Dict[str, str]:
     """Get the quota project mappings from config."""
     config = load_config()
-    return config.get('quota_project_mappings', {})
+    mappings = config.get('quota_project_mappings', {})
+    return mappings if isinstance(mappings, dict) else {}
 
 def check_initialization():
     """Check if CLI is initialized, prompt user if not."""

@@ -10,16 +10,20 @@ import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
+import time
+import urllib.request
+import urllib.error
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
-from .config import init_config
-from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands
+from .config import init_config, is_initialized
+from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands, load_modules_config
 
 
-def get_files_to_remove() -> List[tuple[Path, str]]:
+def get_files_to_remove() -> List[Tuple[Path, str]]:
     """Get list of files and directories that MaxCLI creates.
     
     Returns:
@@ -388,25 +392,24 @@ def display_version(args) -> None:
     print(f"🔄 Update: max update")
 
 
-def fetch_github_releases(repo: str = "maximilianls98/maxcli") -> List[dict]:
-    """Fetch the latest releases from GitHub API.
+def fetch_github_releases(repo: str = "maximilianls98/maxcli") -> List[Dict[str, Any]]:
+    """Fetch GitHub releases from the API.
     
     Args:
-        repo: GitHub repository in format 'owner/repo'.
+        repo: Repository in format 'owner/repo'.
         
     Returns:
         List of release dictionaries from GitHub API.
     """
+    print(f"   📡 Fetching releases from GitHub ({repo})...")
+    url = f"https://api.github.com/repos/{repo}/releases"
+    
     try:
-        import urllib.request
-        import urllib.error
-        
-        url = f"https://api.github.com/repos/{repo}/releases"
         
         with urllib.request.urlopen(url, timeout=10) as response:
             if response.status == 200:
                 content = response.read().decode('utf-8')
-                releases = json.loads(content)
+                releases: List[Dict[str, Any]] = json.loads(content)
                 return releases
             else:
                 print(f"   ⚠️  GitHub API returned status {response.status}")

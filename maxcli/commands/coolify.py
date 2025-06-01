@@ -315,7 +315,7 @@ def coolify_resources(args) -> None:
     print("=" * 80)
     
     # Group resources by type
-    by_type = {}
+    by_type: Dict[str, List[Dict[str, Any]]] = {}
     for resource in resources:
         resource_type = resource.get('type', resource.get('resource_type', 'unknown'))
         if resource_type not in by_type:

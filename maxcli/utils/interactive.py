@@ -92,7 +92,7 @@ def interactive_selection(title: str, choices: List[str]) -> Optional[str]:
             ])
         ).ask()
         
-        return selected
+        return selected if isinstance(selected, str) else None
         
     except ImportError:
         return _interactive_selection_fallback(title, choices)

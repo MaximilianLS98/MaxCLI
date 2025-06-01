@@ -105,7 +105,7 @@ def _validate_python_file(python_path: str) -> bool:
         return False
 
 
-def _load_function_from_file(python_path: str) -> Optional[Callable]:
+def _load_function_from_file(python_path: str) -> Optional[Callable[..., Any]]:
     """Load and return the main processing function from a Python file.
     
     The Python file should contain a function named 'process_data' that takes
@@ -131,7 +131,8 @@ def _load_function_from_file(python_path: str) -> Optional[Callable]:
             print("💡 Example function signature: def process_data(df: pd.DataFrame) -> Any:")
             return None
             
-        return module.process_data
+        func = getattr(module, 'process_data')
+        return func if callable(func) else None
     except Exception as e:
         print(f"❌ Error loading function from file: {e}")
         return None

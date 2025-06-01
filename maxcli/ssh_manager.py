@@ -9,7 +9,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any, Union
 
 
 # Configuration constants
@@ -23,7 +23,7 @@ def ensure_config_directory() -> None:
     os.chmod(CONFIG_DIR, 0o700)
 
 
-def load_ssh_targets() -> Dict[str, Dict]:
+def load_ssh_targets() -> Dict[str, Dict[str, Any]]:
     """Load SSH targets from the JSON configuration file.
     
     Returns:
@@ -35,13 +35,14 @@ def load_ssh_targets() -> Dict[str, Dict]:
     
     try:
         with open(SSH_TARGETS_FILE, 'r') as f:
-            return json.load(f)
+            content = json.load(f)
+            return content if isinstance(content, dict) else {}
     except (json.JSONDecodeError, IOError) as e:
         print(f"Warning: Could not load SSH targets file: {e}")
         return {}
 
 
-def save_ssh_targets(targets: Dict[str, Dict]) -> bool:
+def save_ssh_targets(targets: Dict[str, Dict[str, Any]]) -> bool:
     """Save SSH targets to the JSON configuration file with proper permissions.
     
     Args:
@@ -96,7 +97,7 @@ def validate_ssh_target(user: str, host: str, port: int, key: str) -> Tuple[bool
     return True, None
 
 
-def format_targets_table(targets: Dict[str, Dict]) -> str:
+def format_targets_table(targets: Dict[str, Dict[str, Any]]) -> str:
     """Format SSH targets as a readable table.
     
     Args:
@@ -245,11 +246,13 @@ def connect_target(name: Optional[str] = None) -> bool:
     try:
         # Execute SSH command (replaces current process)
         os.execvp("ssh", ssh_cmd)
-        return True
     except OSError as e:
         print(f"Error: Failed to execute SSH command: {e}")
         print("Make sure SSH client is installed and in your PATH.")
         return False
+    
+    # This line is unreachable due to os.execvp, but needed for type checking
+    return True
 
 
 def interactive_target_picker(target_names: List[str]) -> Optional[str]:
@@ -264,10 +267,11 @@ def interactive_target_picker(target_names: List[str]) -> Optional[str]:
     try:
         # Try to use questionary for better UX
         import questionary
-        return questionary.select(
+        result = questionary.select(
             "Select SSH target:",
             choices=target_names
         ).ask()
+        return result if isinstance(result, str) else None
     except ImportError:
         # Fallback to simple numbered selection
         print("\nAvailable SSH targets:")
@@ -306,15 +310,15 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
     Returns:
         True if keypair was generated successfully, False otherwise
     """
-    key_path = Path(key_path).expanduser()
+    key_path_obj = Path(key_path).expanduser()
     
     # Ensure parent directory exists
-    key_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path_obj.parent.mkdir(parents=True, exist_ok=True)
     
     # Check if key already exists
-    if key_path.exists():
+    if key_path_obj.exists():
         try:
-            overwrite = input(f"Key file {key_path} already exists. Overwrite? [y/N]: ").strip().lower()
+            overwrite = input(f"Key file {key_path_obj} already exists. Overwrite? [y/N]: ").strip().lower()
             if overwrite not in ['y', 'yes']:
                 print("Key generation cancelled.")
                 return False
@@ -326,24 +330,24 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
     keygen_cmd = [
         "ssh-keygen",
         "-t", key_type,
-        "-f", str(key_path),
+        "-f", str(key_path_obj),
         "-C", f"{name}@maxcli-generated",
         "-N", ""  # No passphrase
     ]
     
-    print(f"🔑 Generating {key_type} keypair at {key_path}...")
+    print(f"🔑 Generating {key_type} keypair at {key_path_obj}...")
     
     try:
         result = subprocess.run(keygen_cmd, capture_output=True, text=True)
         
         if result.returncode == 0:
             print(f"✅ SSH keypair generated successfully:")
-            print(f"   Private key: {key_path}")
-            print(f"   Public key:  {key_path}.pub")
+            print(f"   Private key: {key_path_obj}")
+            print(f"   Public key:  {key_path_obj}.pub")
             
             # Set proper permissions
-            os.chmod(key_path, 0o600)
-            os.chmod(f"{key_path}.pub", 0o644)
+            os.chmod(key_path_obj, 0o600)
+            os.chmod(f"{key_path_obj}.pub", 0o644)
             
             return True
         else:
@@ -359,7 +363,7 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
         return False
 
 
-def disable_password_authentication(target: Dict[str, str]) -> bool:
+def disable_password_authentication(target: Dict[str, Union[str, int]]) -> bool:
     """Disable password authentication on remote SSH server.
     
     Args:

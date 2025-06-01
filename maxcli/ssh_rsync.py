@@ -8,7 +8,10 @@ using rsync over SSH with existing SSH target configurations.
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
+
+# Import from ssh_manager module
+from .ssh_manager import load_ssh_targets as _load_ssh_targets
 
 
 # Configuration constants
@@ -20,25 +23,25 @@ REMOTE_BACKUP_DIR = "~/backups"
 REMOTE_BACKUP_PATH = f"{REMOTE_BACKUP_DIR}/{BACKUP_FILENAME}"
 
 
-def load_ssh_targets() -> Dict[str, Dict]:
+def load_ssh_targets() -> Dict[str, Dict[str, Any]]:
     """Load SSH targets from the JSON configuration file.
     
     Returns:
-        Dictionary of SSH targets with name as key and profile data as value.
-        Returns empty dict if file doesn't exist or is invalid.
+        Dictionary of SSH targets, empty dict if file doesn't exist or is invalid.
     """
     if not SSH_TARGETS_FILE.exists():
         return {}
     
     try:
         with open(SSH_TARGETS_FILE, 'r') as f:
-            return json.load(f)
+            content = json.load(f)
+            return content if isinstance(content, dict) else {}
     except (json.JSONDecodeError, IOError) as e:
         print(f"Warning: Could not load SSH targets file: {e}")
         return {}
 
 
-def get_ssh_target(target_name: str) -> Optional[Dict]:
+def get_ssh_target(target_name: str) -> Optional[Dict[str, Any]]:
     """Get SSH target configuration by name.
     
     Args:
