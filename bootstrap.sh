@@ -360,7 +360,7 @@ install_dependencies() {
         brew update >/dev/null 2>&1 || echo "⚠️  Homebrew update had issues, continuing..."
         
         # Install dependencies one by one with explicit wait
-        dependencies=("gpg" "python" "rsync" "curl" "wget")
+        dependencies=("gnupg" "python" "rsync" "curl" "wget")
         
         for dep in "${dependencies[@]}"; do
             if ! command -v "$dep" &> /dev/null; then
