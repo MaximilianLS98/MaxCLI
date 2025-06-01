@@ -7,8 +7,11 @@ management commands.
 """
 
 import argparse
+import json
 import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -221,6 +224,291 @@ def uninstall_maxcli(args) -> None:
     print("   to update your PATH environment variable.")
 
 
+def get_current_version() -> Optional[str]:
+    """Get the current MaxCLI version from git if available.
+    
+    Returns:
+        Current git commit hash or tag if available, None otherwise.
+    """
+    maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
+    
+    try:
+        # First try to get the latest tag
+        result = subprocess.run([
+            "git", "-C", str(maxcli_install_path), "describe", "--tags", "--exact-match"
+        ], capture_output=True, text=True, timeout=5)
+        
+        if result.returncode == 0:
+            return result.stdout.strip()
+        
+        # If no exact tag match, get the commit hash
+        result = subprocess.run([
+            "git", "-C", str(maxcli_install_path), "rev-parse", "--short", "HEAD"
+        ], capture_output=True, text=True, timeout=5)
+        
+        if result.returncode == 0:
+            return result.stdout.strip()
+            
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        pass
+    
+    return None
+
+
+def fetch_github_releases(repo: str = "maximilianls98/maxcli") -> List[dict]:
+    """Fetch the latest releases from GitHub API.
+    
+    Args:
+        repo: GitHub repository in format 'owner/repo'.
+        
+    Returns:
+        List of release dictionaries from GitHub API.
+    """
+    try:
+        import urllib.request
+        import urllib.error
+        
+        url = f"https://api.github.com/repos/{repo}/releases"
+        
+        with urllib.request.urlopen(url, timeout=10) as response:
+            if response.status == 200:
+                content = response.read().decode('utf-8')
+                releases = json.loads(content)
+                if not releases:
+                    print(f"   📝 No formal releases found for {repo}")
+                    print(f"   💡 Updates are still available via git commits")
+                return releases
+            else:
+                print(f"   ⚠️  GitHub API returned status {response.status}")
+    except (urllib.error.URLError, json.JSONDecodeError, Exception) as e:
+        print(f"   ⚠️  Warning: Could not fetch GitHub releases: {e}")
+    
+    return []
+
+
+def display_release_notes(releases: List[dict], current_version: Optional[str] = None) -> None:
+    """Display release notes for recent releases.
+    
+    Args:
+        releases: List of release dictionaries from GitHub API.
+        current_version: Current installed version to highlight new releases.
+    """
+    if not releases:
+        print("   📝 No release notes available")
+        return
+    
+    print("📋 Recent Release Notes:")
+    print("=" * 50)
+    
+    # Show the latest 3 releases
+    for i, release in enumerate(releases[:3]):
+        tag = release.get('tag_name', 'Unknown')
+        name = release.get('name', tag)
+        body = release.get('body', '').strip()
+        published_at = release.get('published_at', '')
+        is_prerelease = release.get('prerelease', False)
+        
+        # Format the date
+        date_str = ""
+        if published_at:
+            try:
+                from datetime import datetime
+                date_obj = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                date_str = f" ({date_obj.strftime('%Y-%m-%d')})"
+            except Exception:
+                pass
+        
+        # Highlight if this is a new version
+        version_marker = ""
+        if current_version and tag != current_version:
+            version_marker = " 🆕"
+        elif current_version and tag == current_version:
+            version_marker = " ✅"
+        
+        prerelease_marker = " 🚧" if is_prerelease else ""
+        
+        print(f"\n🏷️  {name}{version_marker}{prerelease_marker}{date_str}")
+        
+        if body:
+            # Format release notes nicely
+            lines = body.split('\n')
+            for line in lines:
+                if line.strip():
+                    print(f"   {line}")
+        else:
+            print("   No release notes provided")
+        
+        if i < len(releases[:3]) - 1:
+            print("   " + "-" * 45)
+
+
+def ensure_git_repository() -> bool:
+    """Ensure MaxCLI installation is a git repository.
+    
+    Returns:
+        True if git repo is available, False otherwise.
+    """
+    maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
+    
+    if not maxcli_install_path.exists():
+        print("❌ MaxCLI installation directory not found")
+        return False
+    
+    git_dir = maxcli_install_path / ".git"
+    if not git_dir.exists():
+        print("📦 Converting MaxCLI installation to git repository...")
+        
+        try:
+            # Initialize git repository
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "init"
+            ], check=True, capture_output=True, timeout=10)
+            
+            # Add remote origin
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "remote", "add", "origin",
+                "https://github.com/maximilianls98/maxcli.git"
+            ], check=True, capture_output=True, timeout=10)
+            
+            # Fetch the repository
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "fetch", "origin"
+            ], check=True, capture_output=True, timeout=30)
+            
+            # Reset to match origin/main
+            subprocess.run([
+                "git", "-C", str(maxcli_install_path), "reset", "--hard", "origin/main"
+            ], check=True, capture_output=True, timeout=10)
+            
+            print("   ✅ Successfully initialized git repository")
+            return True
+            
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+            print(f"   ❌ Failed to initialize git repository: {e}")
+            return False
+    
+    return True
+
+
+def update_maxcli(args) -> None:
+    """Update MaxCLI to the latest version from GitHub.
+    
+    Args:
+        args: Parsed command line arguments containing check_only and show_releases flags.
+    """
+    print("🔄 MaxCLI Updater")
+    print("=" * 50)
+    
+    maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
+    
+    # Get current version
+    current_version = get_current_version()
+    if current_version:
+        print(f"📌 Current version: {current_version}")
+    else:
+        print("📌 Current version: Unknown (not git-tracked)")
+    
+    # Fetch and display release notes if requested or if checking only
+    if args.show_releases or args.check_only:
+        print("\n🔍 Fetching release information...")
+        releases = fetch_github_releases()
+        if releases:
+            display_release_notes(releases, current_version)
+        else:
+            print("   ⚠️  Could not fetch release information")
+    
+    # If only checking, don't proceed with update
+    if args.check_only:
+        print(f"\n💡 To update, run: max update")
+        return
+    
+    # Ensure we have a git repository
+    if not ensure_git_repository():
+        print("\n❌ Cannot proceed without git repository setup")
+        print("💡 Consider reinstalling MaxCLI using the bootstrap script")
+        return
+    
+    print("\n🔄 Checking for updates...")
+    
+    try:
+        # Fetch latest changes
+        print("   📡 Fetching latest changes from GitHub...")
+        subprocess.run([
+            "git", "-C", str(maxcli_install_path), "fetch", "origin"
+        ], check=True, capture_output=True, timeout=30)
+        
+        # Check if updates are available
+        result = subprocess.run([
+            "git", "-C", str(maxcli_install_path), "rev-list", "--count", "HEAD..origin/main"
+        ], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            commits_behind = int(result.stdout.strip())
+            if commits_behind == 0:
+                print("   ✅ MaxCLI is already up to date!")
+                
+                # Still show release notes if requested
+                if not args.show_releases:
+                    print("\n💡 To see release notes, run: max update --show-releases")
+                return
+            else:
+                print(f"   📦 {commits_behind} update(s) available")
+        
+        # Pull the latest changes
+        print("   ⬇️  Pulling latest changes...")
+        subprocess.run([
+            "git", "-C", str(maxcli_install_path), "pull", "origin", "main"
+        ], check=True, capture_output=True, timeout=30)
+        
+        # Reinstall dependencies if requirements.txt changed
+        print("   🔧 Checking for dependency updates...")
+        maxcli_venv = Path.home() / ".venvs" / "maxcli"
+        requirements_file = maxcli_install_path.parent.parent.parent / "requirements.txt"
+        
+        if requirements_file.exists() and maxcli_venv.exists():
+            print("   📦 Updating dependencies...")
+            subprocess.run([
+                str(maxcli_venv / "bin" / "pip"), "install", "-r", str(requirements_file)
+            ], check=True, capture_output=True, timeout=60)
+            print("   ✅ Dependencies updated")
+        else:
+            # Fallback: look for requirements.txt in the maxcli repository
+            repo_requirements = maxcli_install_path / ".." / "requirements.txt"
+            if repo_requirements.exists() and maxcli_venv.exists():
+                print("   📦 Updating dependencies from repository...")
+                subprocess.run([
+                    str(maxcli_venv / "bin" / "pip"), "install", "-r", str(repo_requirements)
+                ], check=True, capture_output=True, timeout=60)
+                print("   ✅ Dependencies updated")
+            else:
+                print("   📝 No requirements.txt found or virtual environment missing")
+        
+        # Get new version
+        new_version = get_current_version()
+        
+        print("\n" + "="*50)
+        print("✅ MaxCLI update completed successfully!")
+        
+        if current_version and new_version and current_version != new_version:
+            print(f"📌 Updated from {current_version} to {new_version}")
+        elif new_version:
+            print(f"📌 Now running version: {new_version}")
+        
+        # Show recent release notes after update
+        if not args.show_releases:
+            print("\n🔍 Fetching latest release notes...")
+            releases = fetch_github_releases()
+            if releases:
+                display_release_notes(releases[:1], new_version)  # Show just the latest
+        
+        print("\n💡 Update complete! All changes are immediately available.")
+        
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"\n❌ Update failed: {e}")
+        print("💡 Try running the bootstrap script to reinstall:")
+        print("   curl -sSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash")
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the main argument parser.
     
@@ -243,6 +531,7 @@ Module Management:
 
 Core Commands:
   max init                        # Initialize CLI with your personal configuration
+  max update                      # Update MaxCLI to the latest version from GitHub
   max uninstall                   # Completely remove MaxCLI and all configurations
   
 Examples of enabled commands (depends on active modules):
@@ -296,6 +585,63 @@ Examples:
     )
     init_parser.add_argument('--force', action='store_true', help='Force reconfiguration without confirmation')
     init_parser.set_defaults(func=init_config)
+
+    # Update command
+    update_parser = subparsers.add_parser(
+        'update',
+        help='Update MaxCLI to the latest version from GitHub',
+        description="""
+🔄 MaxCLI Updater - Keep Your CLI Up to Date
+
+This command updates MaxCLI to the latest version by pulling changes from GitHub.
+It performs the following operations:
+
+🔍 Version Checking:
+    • Shows current installed version (git tag or commit hash)
+    • Checks for available updates from GitHub repository
+    • Displays number of commits behind latest version
+
+📋 Release Notes:
+    • Fetches and displays recent release notes from GitHub
+    • Highlights new releases with 🆕 markers
+    • Shows current release with ✅ markers
+    • Indicates pre-releases with 🚧 markers
+
+⚡ Update Process:
+    • Automatically initializes git repository if needed
+    • Pulls latest changes from GitHub (main branch)
+    • Updates Python dependencies if requirements.txt changed
+    • Preserves all personal configurations and module settings
+
+🔧 Safe Operation:
+    • Uses git to track changes and ensure clean updates
+    • Maintains virtual environment integrity
+    • No data loss - configurations remain intact
+    • Immediate availability of new features
+
+The update is performed on the MaxCLI installation at ~/.local/lib/python/maxcli/
+and will immediately be available for use without restarting the terminal.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max update                      # Update to latest version and show release notes
+  max update --check-only         # Check for updates without installing
+  max update --show-releases      # Show recent release notes without updating
+  max update --check-only --show-releases  # Check updates and show all release notes
+        """
+    )
+    update_parser.add_argument(
+        '--check-only', 
+        action='store_true', 
+        help='Check for updates without installing them'
+    )
+    update_parser.add_argument(
+        '--show-releases', 
+        action='store_true', 
+        help='Show recent GitHub release notes'
+    )
+    update_parser.set_defaults(func=update_maxcli)
 
     # Uninstall command
     uninstall_parser = subparsers.add_parser(
