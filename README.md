@@ -8,7 +8,7 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 - **Dynamic Loading**: Modules are loaded based on your configuration
 - **Personal Configuration**: Customizable settings stored in `~/.config/maxcli/`
 - **Comprehensive Tools**: SSH management, Docker utilities, Kubernetes helpers, GCP tools, and more
-- **Bootstrap Integration**: Easy setup and installation via bootstrap script
+- **Smart Bootstrap**: Intelligent installation supporting both standalone and local modes
 
 ## 📦 Available Modules
 
@@ -26,22 +26,138 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 
 ## 🛠 Installation
 
-### Bootstrap Installation (Recommended)
+MaxCLI supports two installation methods: **Standalone** (recommended for quick setup) and **Local** (recommended for development or customization).
+
+### 🚀 Standalone Installation (Recommended)
+
+The standalone method automatically downloads and installs MaxCLI with a single command:
 
 ```bash
-# Download and run the bootstrap script
+# Basic installation with interactive module selection
 curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
 
-# Or with custom options
+# Quick installation with preset modules
 curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager"
+
+# Installation with all available modules
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
 ```
 
-### Manual Installation
+#### Standalone Installation Options
+
+| Option                    | Description                                | Example                                  |
+| ------------------------- | ------------------------------------------ | ---------------------------------------- |
+| `--modules=LIST`          | Preset modules to enable (comma-separated) | `--modules "ssh_manager,docker_manager"` |
+| `--github-repo=USER/REPO` | Install from a different repository/fork   | `--github-repo "yourfork/maxcli"`        |
+| `--github-branch=BRANCH`  | Install from a specific branch             | `--github-branch "development"`          |
+| `--help`                  | Show detailed help and options             | `--help`                                 |
+
+#### Advanced Standalone Examples
+
+```bash
+# Install from a fork
+curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli"
+
+# Install from development branch
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/development/bootstrap.sh | bash -s -- --github-branch "development"
+
+# Install specific modules from a fork
+curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli" --modules "ssh_manager,custom_module"
+```
+
+### 🔧 Local Installation
+
+The local method gives you full control and is ideal for development or customization:
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/maxcli.git
 cd maxcli
+
+# Run the bootstrap script
+./bootstrap.sh
+
+# Or with preset modules
+./bootstrap.sh --modules "ssh_manager,setup_manager,docker_manager"
+
+# Force fresh download even with local files
+./bootstrap.sh --force-download
+```
+
+#### Local Installation Options
+
+All standalone options plus:
+
+| Option             | Description                                    | Example                           |
+| ------------------ | ---------------------------------------------- | --------------------------------- |
+| `--force-download` | Download fresh files even if local files exist | `./bootstrap.sh --force-download` |
+
+### 🆘 Bootstrap Help
+
+Get detailed information about all available options:
+
+```bash
+# Download and show help
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --help
+
+# Or with local installation
+./bootstrap.sh --help
+```
+
+### 📋 Module Presets
+
+Here are some common module combinations for different use cases:
+
+```bash
+# Frontend Developer
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "setup_manager,ssh_manager,docker_manager"
+
+# DevOps Engineer
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager"
+
+# Full Stack Developer
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager,gcp_manager,misc_manager"
+
+# Minimalist Setup
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager"
+
+# Power User (All Modules)
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
+```
+
+### ✅ Post-Installation
+
+After installation, follow these steps:
+
+```bash
+# 1. Restart your terminal or reload your shell
+source ~/.zshrc
+
+# 2. Initialize your personal configuration
+max init
+
+# 3. Verify installation
+max --help
+
+# 4. Check enabled modules
+max modules list
+
+# 5. Test a command (if ssh_manager is enabled)
+max ssh list-targets
+```
+
+### 🔄 Manual Installation (Alternative)
+
+If you prefer manual control over the installation process:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/maxcli.git
+cd maxcli
+
+# Create virtual environment
+python3 -m venv ~/.venvs/maxcli
+source ~/.venvs/maxcli/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -52,7 +168,7 @@ pip install -e .
 # Initialize configuration
 max init
 
-# Configure modules
+# Configure modules manually
 max modules list
 max modules enable ssh_manager
 max modules enable docker_manager
@@ -288,7 +404,55 @@ Or manually edit `~/.config/maxcli/max_modules.json`:
 
 ## 🔍 Troubleshooting
 
-### Check Module Status
+### Installation Issues
+
+#### Bootstrap Script Problems
+
+```bash
+# Get help with bootstrap options
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --help
+
+# Test standalone download capability
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager"
+
+# Force fresh download (clears any cached/problematic files)
+./bootstrap.sh --force-download
+
+# Use a different repository/fork
+curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli"
+```
+
+#### Network/Download Issues
+
+```bash
+# Manual verification of download URLs
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/requirements.txt
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/main.py
+
+# Check if repository archive is accessible
+curl -fsSL https://github.com/yourusername/maxcli/archive/main.tar.gz | tar -tz | head -10
+```
+
+#### PATH and Shell Issues
+
+```bash
+# Verify max command is in PATH
+which max
+
+# Manually add to PATH if needed
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# Check virtual environment
+ls -la ~/.venvs/maxcli/bin/python
+
+# Test the wrapper script directly
+~/bin/max --help
+```
+
+### Runtime Issues
+
+#### Check Module Status
 
 ```bash
 # List all modules and their status
@@ -296,9 +460,12 @@ max modules list
 
 # Check configuration file
 cat ~/.config/maxcli/max_modules.json
+
+# Verify Python environment
+~/.venvs/maxcli/bin/python -c "import questionary; print('Dependencies OK')"
 ```
 
-### Reset Configuration
+#### Reset Configuration
 
 ```bash
 # Reinitialize personal configuration
@@ -307,6 +474,10 @@ max init --force
 # Reset module configuration (re-run bootstrap)
 rm ~/.config/maxcli/max_modules.json
 max modules list  # This will recreate with defaults
+
+# Complete reinstallation
+rm -rf ~/.venvs/maxcli ~/.config/maxcli ~/bin/max
+curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
 ```
 
 ### Common Issues
@@ -318,17 +489,84 @@ max modules list  # This will recreate with defaults
     max modules enable <module_name>
     ```
 
-2. **Import errors**: Missing dependencies for a module
+2. **Bootstrap fails with "files not found"**: You're running standalone but network issues prevent download
 
     ```bash
-    pip install -r requirements.txt
+    # Try with explicit repo and branch
+    curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourusername/maxcli" --github-branch "main"
+
+    # Or clone locally first
+    git clone https://github.com/yourusername/maxcli.git
+    cd maxcli
+    ./bootstrap.sh
     ```
 
-3. **Configuration issues**: Reset configuration files
+3. **Import errors**: Missing dependencies for a module
+
+    ```bash
+    # Reinstall in virtual environment
+    source ~/.venvs/maxcli/bin/activate
+    pip install -r requirements.txt
+
+    # Or force fresh installation
+    ./bootstrap.sh --force-download
+    ```
+
+4. **Permission errors**: Installation directory not writable
+
+    ```bash
+    # Ensure directories are writable
+    mkdir -p ~/bin ~/.config/maxcli ~/.venvs
+    chmod 755 ~/bin ~/.config/maxcli ~/.venvs
+
+    # Re-run installation
+    ./bootstrap.sh --force-download
+    ```
+
+5. **Virtual environment issues**: Python environment corrupted
+
+    ```bash
+    # Remove and recreate virtual environment
+    rm -rf ~/.venvs/maxcli
+    python3 -m venv ~/.venvs/maxcli
+    source ~/.venvs/maxcli/bin/activate
+    pip install -r requirements.txt
+
+    # Or use bootstrap to recreate everything
+    ./bootstrap.sh --force-download
+    ```
+
+6. **Configuration issues**: Reset configuration files
+
     ```bash
     rm -rf ~/.config/maxcli/
     max init
     ```
+
+7. **Module not loading**: Check if module is enabled and dependencies are met
+
+    ```bash
+    max modules list
+    max modules enable <module_name>
+
+    # Check specific module dependencies
+    cat ~/.config/maxcli/max_modules.json | grep -A 5 "<module_name>"
+    ```
+
+### Debug Mode
+
+Enable verbose output for troubleshooting:
+
+```bash
+# Add debug output to bootstrap
+bash -x ./bootstrap.sh --modules "ssh_manager"
+
+# Check Python import paths
+~/.venvs/maxcli/bin/python -c "import sys; print('\n'.join(sys.path))"
+
+# Verify maxcli package location
+~/.venvs/maxcli/bin/python -c "import maxcli; print(maxcli.__file__)"
+```
 
 ## 🔧 Development
 

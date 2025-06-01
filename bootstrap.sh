@@ -16,10 +16,71 @@ echo ""
 echo "🔧 Setting up your personalized development toolkit..."
 echo "=================================================="
 
-# Parse command line arguments
+# Function to show usage information (defined early)
+show_help() {
+    cat << "EOF"
+🚀 MaxCLI Bootstrap Script - Personal Development CLI Setup
+
+USAGE:
+    ./bootstrap.sh [OPTIONS]
+
+INSTALLATION MODES:
+    Standalone (download files automatically):
+        curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash
+
+    Local (use files in current directory):
+        git clone https://github.com/yourusername/maxcli.git
+        cd maxcli
+        ./bootstrap.sh
+
+OPTIONS:
+    --modules=MODULE1,MODULE2    Preset modules to enable (comma-separated)
+    --modules MODULE1,MODULE2    Alternative syntax for modules
+    --force-download            Force download files even if local files exist
+    --github-repo=USER/REPO     Use a different GitHub repository
+    --github-branch=BRANCH      Use a different branch (default: main)
+    --help, -h                  Show this help message
+
+AVAILABLE MODULES:
+    ssh_manager       SSH connection and key management
+    ssh_backup        SSH key backup/restore with GPG encryption  
+    ssh_rsync         SSH-based rsync operations
+    docker_manager    Docker system cleanup and management
+    kubernetes_manager Kubernetes context switching
+    gcp_manager       Google Cloud Platform configuration
+    coolify_manager   Coolify instance management
+    setup_manager     Development environment setup
+    misc_manager      Database backup and deployment utilities
+
+EXAMPLES:
+    # Install with specific modules
+    ./bootstrap.sh --modules=ssh_manager,docker_manager,setup_manager
+    
+    # Force fresh download
+    ./bootstrap.sh --force-download
+    
+    # Use a fork
+    ./bootstrap.sh --github-repo=yourfork/maxcli
+    
+    # Standalone with modules
+    curl -fsSL https://raw.githubusercontent.com/yourusername/maxcli/main/bootstrap.sh | bash -s -- --modules=ssh_manager,setup_manager
+
+EOF
+}
+
+# CRITICAL FIX: Parse command line arguments FIRST, before any file operations or traps
+# This ensures --help exits immediately without triggering any cleanup or file operations
 PRESET_MODULES=""
+FORCE_DOWNLOAD=false
+GITHUB_REPO="yourusername/maxcli"
+GITHUB_BRANCH="main"
+
 for arg in "$@"; do
     case $arg in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
         --modules=*)
             PRESET_MODULES="${arg#*=}"
             shift
@@ -28,31 +89,128 @@ for arg in "$@"; do
             PRESET_MODULES="$2"
             shift 2
             ;;
+        --force-download)
+            FORCE_DOWNLOAD=true
+            shift
+            ;;
+        --github-repo=*)
+            GITHUB_REPO="${arg#*=}"
+            shift
+            ;;
+        --github-branch=*)
+            GITHUB_BRANCH="${arg#*=}"
+            shift
+            ;;
+        *)
+            if [[ "$arg" != "" ]]; then
+                echo "⚠️  Unknown option: $arg"
+                echo "💡 Use --help to see available options"
+                exit 1
+            fi
+            ;;
     esac
 done
+
+# NOW it's safe to set up file operations and traps
+# Configuration for standalone mode
+TEMP_DIR=""
+CLEANUP_REQUIRED=false
+
+# Function to detect if we're running in standalone mode
+is_standalone_mode() {
+    local script_dir="$1"
+    [[ ! -f "$script_dir/requirements.txt" ]] || [[ ! -f "$script_dir/main.py" ]] || [[ ! -d "$script_dir/maxcli" ]]
+}
+
+# Function to download files from GitHub
+download_required_files() {
+    echo "📥 Downloading required files from GitHub..."
+    TEMP_DIR=$(mktemp -d)
+    CLEANUP_REQUIRED=true
+    
+    echo "📁 Created temporary directory: $TEMP_DIR"
+    
+    # Download individual files with error checking
+    echo "⬇️  Downloading requirements.txt..."
+    if ! curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/requirements.txt" -o "$TEMP_DIR/requirements.txt"; then
+        echo "❌ Error: Failed to download requirements.txt"
+        exit 1
+    fi
+    
+    echo "⬇️  Downloading main.py..."
+    if ! curl -fsSL "https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/main.py" -o "$TEMP_DIR/main.py"; then
+        echo "❌ Error: Failed to download main.py"
+        exit 1
+    fi
+    
+    # Download and extract the entire repository to get the maxcli package
+    echo "📦 Downloading and extracting maxcli package..."
+    if ! curl -fsSL "https://github.com/$GITHUB_REPO/archive/$GITHUB_BRANCH.tar.gz" | tar -xz -C "$TEMP_DIR" --strip-components=1; then
+        echo "❌ Error: Failed to download and extract repository"
+        exit 1
+    fi
+    
+    # Verify the maxcli directory was extracted
+    if [[ ! -d "$TEMP_DIR/maxcli" ]]; then
+        echo "❌ Error: maxcli package directory not found in downloaded files"
+        exit 1
+    fi
+    
+    echo "✅ Successfully downloaded all required files"
+}
+
+# Function to cleanup temporary files
+cleanup() {
+    if [[ "$CLEANUP_REQUIRED" == "true" ]] && [[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]]; then
+        echo "🧹 Cleaning up temporary files..."
+        rm -rf "$TEMP_DIR"
+    fi
+}
+
+# Set trap for cleanup on script exit (ONLY after argument parsing)
+trap cleanup EXIT
+
+echo "🔍 Proceeding with installation (arguments parsed safely)..."
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "📁 Script directory: $SCRIPT_DIR"
 
-# Check if required files exist
+# Check if we need to download files (standalone mode or force download)
+if [[ "$FORCE_DOWNLOAD" == "true" ]] || is_standalone_mode "$SCRIPT_DIR"; then
+    if [[ "$FORCE_DOWNLOAD" == "true" ]]; then
+        echo "🔄 Force download requested - downloading fresh files..."
+    else
+        echo "🔍 Running in standalone mode - required files not found locally"
+    fi
+    
+    download_required_files
+    SCRIPT_DIR="$TEMP_DIR"
+    echo "📁 Using downloaded files from: $SCRIPT_DIR"
+else
+    echo "📁 Using local files from: $SCRIPT_DIR"
+fi
+
+# Verify all required files are now available
 if [[ ! -f "$SCRIPT_DIR/requirements.txt" ]]; then
     echo "❌ Error: requirements.txt not found in $SCRIPT_DIR"
-    echo "💡 Make sure you're running this script from the MaxCLI directory"
+    echo "💡 Make sure you're running this script from the MaxCLI directory or that the download succeeded"
     exit 1
 fi
 
 if [[ ! -f "$SCRIPT_DIR/main.py" ]]; then
     echo "❌ Error: main.py not found in $SCRIPT_DIR"
-    echo "💡 Make sure you're running this script from the MaxCLI directory"
+    echo "💡 Make sure you're running this script from the MaxCLI directory or that the download succeeded"
     exit 1
 fi
 
 if [[ ! -d "$SCRIPT_DIR/maxcli" ]]; then
     echo "❌ Error: maxcli package directory not found in $SCRIPT_DIR"
-    echo "💡 Make sure you're running this script from the MaxCLI directory"
+    echo "💡 Make sure you're running this script from the MaxCLI directory or that the download succeeded"
     exit 1
 fi
+
+echo "✅ All required files found successfully"
 
 # Install Xcode command line tools
 echo ""
@@ -384,6 +542,12 @@ echo "   • View modules: max modules list"
 echo "   • Enable more: max modules enable <module>"
 echo "   • Disable modules: max modules disable <module>"
 echo ""
+echo "🔧 Installation Modes:"
+echo "   • Standalone: curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/bootstrap.sh | bash"
+echo "   • Local: git clone && cd maxcli && ./bootstrap.sh"
+echo "   • Force download: ./bootstrap.sh --force-download"
+echo "   • Custom repo: ./bootstrap.sh --github-repo=yourfork/maxcli"
+echo ""
 
 # Show enabled command examples
 if [[ ${#enabled_modules[@]} -gt 0 ]]; then
@@ -422,6 +586,13 @@ if [[ ${#enabled_modules[@]} -gt 0 ]]; then
 fi
 
 echo ""
+
+# Cleanup temporary files before showing completion
+if [[ "$CLEANUP_REQUIRED" == "true" ]]; then
+    cleanup
+    # Reset cleanup flag so trap doesn't run again
+    CLEANUP_REQUIRED=false
+fi
 
 # Footer art
 cat << "EOF"

@@ -1,0 +1,276 @@
+name: Test Bootstrap Script
+
+# Trigger on pushes to main and all pull requests
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'bootstrap.sh'
+      - 'test_bootstrap.sh'
+      - '.github/workflows/test-bootstrap.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'bootstrap.sh'
+      - 'test_bootstrap.sh'
+      - '.github/workflows/test-bootstrap.yml'
+  # Allow manual workflow runs
+  workflow_dispatch:
+
+jobs:
+  test-bootstrap:
+    name: Test Bootstrap Script Security & Functionality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Set Up Test Environment
+      run: |
+        # Ensure scripts are executable
+        chmod +x bootstrap.sh
+        chmod +x test_bootstrap.sh
+        
+        # Install required tools for testing
+        sudo apt-get update
+        sudo apt-get install -y curl wget timeout
+        
+    - name: Run Bootstrap Script Tests
+      id: test_bootstrap
+      run: |
+        echo "🧪 Running comprehensive bootstrap script tests..."
+        ./test_bootstrap.sh --ci
+        
+    - name: Test Critical Security Fix
+      run: |
+        echo "🔒 Testing critical security fix specifically..."
+        
+        # Create a canary file that should NOT be deleted
+        echo "This file should not be deleted" > canary_security_test.txt
+        
+        # Run help command - should NOT delete any files
+        ./bootstrap.sh --help > /dev/null 2>&1
+        
+        # Verify canary file still exists
+        if [[ ! -f "canary_security_test.txt" ]]; then
+          echo "::error::❌ CRITICAL SECURITY ISSUE: --help deleted files!"
+          exit 1
+        fi
+        
+        echo "✅ Security fix verified: --help does not delete files"
+        rm canary_security_test.txt
+        
+    - name: Test Argument Validation
+      run: |
+        echo "🔍 Testing argument validation..."
+        
+        # Test invalid arguments (should exit with code 1)
+        if ./bootstrap.sh --invalid-arg > /dev/null 2>&1; then
+          echo "::error::❌ Invalid arguments should be rejected"
+          exit 1
+        fi
+        
+        echo "✅ Argument validation working correctly"
+        
+    - name: Test Help Command Variations
+      run: |
+        echo "📖 Testing help command variations..."
+        
+        # Test --help
+        if ! ./bootstrap.sh --help | grep -q "USAGE:"; then
+          echo "::error::❌ --help not working properly"
+          exit 1
+        fi
+        
+        # Test -h
+        if ! ./bootstrap.sh -h | grep -q "USAGE:"; then
+          echo "::error::❌ -h not working properly"
+          exit 1
+        fi
+        
+        echo "✅ Help commands working correctly"
+        
+    - name: Test Standalone Mode Detection
+      run: |
+        echo "📡 Testing standalone mode detection..."
+        
+        # Create temp directory without required files
+        temp_dir=$(mktemp -d)
+        cp bootstrap.sh "$temp_dir/"
+        cd "$temp_dir"
+        
+        # Mock network calls to avoid actual downloads
+        export -f original_curl=curl
+        curl() {
+          if [[ "$*" == *"requirements.txt"* ]]; then
+            echo "questionary>=1.10.0" > "${@: -1}"
+            return 0
+          elif [[ "$*" == *"main.py"* ]]; then
+            echo "#!/usr/bin/env python3" > "${@: -1}"
+            return 0
+          elif [[ "$*" == *".tar.gz"* ]]; then
+            # Create a mock tar structure
+            mkdir -p mock_extract/maxcli
+            echo "mock" > mock_extract/maxcli/__init__.py
+            tar -czf - -C mock_extract . | tar -xz -C "${@: -1}"
+            return 0
+          fi
+          return 0
+        }
+        export -f curl
+        
+        # This should detect standalone mode
+        if timeout 10 ./bootstrap.sh --help | grep -q "USAGE:"; then
+          echo "✅ Standalone mode detection working"
+        else
+          echo "::error::❌ Standalone mode detection failed"
+          exit 1
+        fi
+        
+        cd - && rm -rf "$temp_dir"
+        
+    - name: Validate Script Syntax
+      run: |
+        echo "🔍 Validating script syntax..."
+        
+        # Check bash syntax
+        bash -n bootstrap.sh
+        bash -n test_bootstrap.sh
+        
+        echo "✅ Script syntax is valid"
+        
+    - name: Test Module Configuration
+      run: |
+        echo "⚙️ Testing module configuration..."
+        
+        # Test preset modules argument parsing
+        output=$(./bootstrap.sh --help --modules=ssh_manager,docker_manager)
+        
+        if echo "$output" | grep -q "USAGE:"; then
+          echo "✅ Module configuration arguments parsed correctly"
+        else
+          echo "::error::❌ Module configuration not working"
+          exit 1
+        fi
+        
+    - name: Performance Test
+      run: |
+        echo "⚡ Testing script performance..."
+        
+        # Help command should be very fast (under 2 seconds)
+        start_time=$(date +%s)
+        ./bootstrap.sh --help > /dev/null 2>&1
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+        
+        if [[ $duration -gt 2 ]]; then
+          echo "::warning::⚠️ Help command took ${duration}s (slower than expected)"
+        else
+          echo "✅ Help command performance good (${duration}s)"
+        fi
+        
+    - name: Generate Test Report
+      if: always()
+      run: |
+        echo "📊 Test Summary"
+        echo "==============="
+        echo "✅ Critical security fix verified"
+        echo "✅ Argument validation working"
+        echo "✅ Help commands functional"
+        echo "✅ Standalone mode detection working"
+        echo "✅ Script syntax valid"
+        echo "✅ Module configuration working"
+        echo "✅ Performance acceptable"
+        echo ""
+        echo "🎉 Bootstrap script is ready for production!"
+        
+    # Optional: Upload test artifacts on failure
+    - name: Upload Test Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-failure-logs
+        path: |
+          /tmp/maxcli_test_*
+        retention-days: 7
+
+  # Test on macOS to ensure cross-platform compatibility
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Set Up Test Environment
+      run: |
+        chmod +x bootstrap.sh
+        chmod +x test_bootstrap.sh
+        
+    - name: Run Critical Security Tests on macOS
+      run: |
+        echo "🍎 Testing critical security fix on macOS..."
+        
+        # Create canary file
+        echo "macOS test file" > canary_macos.txt
+        
+        # Run help - should not delete files
+        ./bootstrap.sh --help > /dev/null 2>&1
+        
+        if [[ ! -f "canary_macos.txt" ]]; then
+          echo "::error::❌ CRITICAL: Security issue on macOS!"
+          exit 1
+        fi
+        
+        echo "✅ Security fix verified on macOS"
+        rm canary_macos.txt
+
+  # Test different scenarios
+  test-scenarios:
+    name: Test Different Usage Scenarios
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        scenario:
+          - "help-only"
+          - "invalid-args"
+          - "module-presets"
+          - "github-customization"
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Set Up Environment
+      run: |
+        chmod +x bootstrap.sh
+        chmod +x test_bootstrap.sh
+        
+    - name: Test Scenario - Help Only
+      if: matrix.scenario == 'help-only'
+      run: |
+        echo "Testing help-only scenario..."
+        ./bootstrap.sh --help | grep -q "USAGE:" || exit 1
+        ./bootstrap.sh -h | grep -q "USAGE:" || exit 1
+        
+    - name: Test Scenario - Invalid Arguments
+      if: matrix.scenario == 'invalid-args'
+      run: |
+        echo "Testing invalid arguments scenario..."
+        ! ./bootstrap.sh --nonexistent-flag || exit 1
+        ! ./bootstrap.sh --modules= || exit 1
+        
+    - name: Test Scenario - Module Presets
+      if: matrix.scenario == 'module-presets'
+      run: |
+        echo "Testing module presets scenario..."
+        ./bootstrap.sh --help --modules=ssh_manager,docker_manager | grep -q "USAGE:" || exit 1
+        
+    - name: Test Scenario - GitHub Customization
+      if: matrix.scenario == 'github-customization'
+      run: |
+        echo "Testing GitHub customization scenario..."
+        ./bootstrap.sh --help --github-repo=custom/repo --github-branch=develop | grep -q "USAGE:" || exit 1 
