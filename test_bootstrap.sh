@@ -695,20 +695,50 @@ test_config_file_generation() {
     local test_name="Configuration File Generation"
     local test_dir="$TEST_OUTPUT_DIR/config_gen"
     
-    create_test_environment "$test_dir"
+    debug_output "Starting $test_name"
+    
+    if ! create_test_environment "$test_dir"; then
+        log_test_result "$test_name" "FAIL" "Could not create test environment"
+        return 1
+    fi
     
     # Test config generation using the isolated environment
     local output
     local exit_code=0
     
-    # Use a timeout to prevent hanging and run in isolated environment
-    output=$(timeout 30s run_isolated_bootstrap "$test_dir" --modules=ssh_manager,docker_manager 2>&1) || exit_code=$?
+    debug_output "Testing config generation with modules"
+    
+    # Create a wrapper script for timeout since timeout can't execute bash functions
+    cat > "$test_dir/timeout_wrapper.sh" << 'EOF'
+#!/bin/bash
+cd "$(dirname "$0")"
+env \
+    TEST_MODE=true \
+    TEST_HOME_DIR="$(pwd)/test_home" \
+    HOME="$(pwd)/test_home" \
+    XDG_CONFIG_HOME="$(pwd)/test_home/.config" \
+    MAXCLI_CONFIG_DIR="$(pwd)/test_home/.config/maxcli" \
+    PATH="$(pwd)/test_home/.local/bin:$PATH" \
+    ./bootstrap_isolated.sh "$@"
+EOF
+    
+    chmod +x "$test_dir/timeout_wrapper.sh"
+    
+    # Use timeout with the wrapper script instead of the bash function
+    cd "$test_dir" || exit 1
+    output=$(timeout 30s ./timeout_wrapper.sh --modules=ssh_manager,docker_manager 2>&1) || exit_code=$?
+    
+    debug_output "Config generation exit code: $exit_code"
+    debug_output "Config generation output: $output"
     
     # Check if config was created in the isolated test directory
     local test_config_file="$test_dir/test_home/.config/maxcli/config.json"
     local config_exists=false
     if [[ -f "$test_config_file" ]]; then
         config_exists=true
+        debug_output "Config file found at: $test_config_file"
+    else
+        debug_output "Config file not found at: $test_config_file"
     fi
     
     if string_contains "$output" "Module configuration created" || [[ "$config_exists" == "true" ]]; then
