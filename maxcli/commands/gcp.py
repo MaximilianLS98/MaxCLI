@@ -23,7 +23,7 @@ def interactive_config_selection() -> str:
     
     if not configs:
         print("❌ No configurations with ADC files found.")
-        print("💡 Create a new configuration with: max create-config <name>")
+        print("💡 Create a new configuration with: max gcp config create <name>")
         sys.exit(1)
     
     selected = interactive_selection("Select a gcloud configuration:", configs)
@@ -100,7 +100,7 @@ def create_config(args):
         setup_quota_project(config_name)
         
         print(f"✅ Configuration '{config_name}' created successfully!")
-        print(f"You can now switch to this config using: max switch-config {config_name}")
+        print(f"You can now switch to this config using: max gcp config switch {config_name}")
         
     except subprocess.CalledProcessError as e:
         print(f"❌ Error creating configuration: {e}", file=sys.stderr)
@@ -153,7 +153,7 @@ def list_configs(_args):
     
     if not configs:
         print("  (No configurations found)")
-        print("💡 Create a new configuration with: max create-config <name>")
+        print("💡 Create a new configuration with: max gcp config create <name>")
     else:
         for config in configs:
             print(f"  {config}") 

@@ -41,7 +41,7 @@ AVAILABLE_MODULES = {
     },
     "gcp_manager": {
         "description": "Google Cloud Platform configuration and authentication management",
-        "commands": ["switch-config", "create-config", "list-configs"]
+        "commands": ["gcp"]
     },
     "coolify_manager": {
         "description": "Coolify instance management through REST API",

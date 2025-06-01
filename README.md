@@ -12,17 +12,17 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 
 ## 📦 Available Modules
 
-| Module               | Description                          | Key Commands                                          |
-| -------------------- | ------------------------------------ | ----------------------------------------------------- |
-| `ssh_manager`        | SSH connection and target management | `ssh list-targets`, `ssh add-target`, `ssh connect`   |
-| `ssh_backup`         | SSH-key backup operations            | `ssh-backup export`, `ssh-backup import`              |
-| `ssh_rsync`          | SSH backup rsync synchronization     | `ssh-rsync upload-backup`, `ssh-rsync download-backup`|
-| `coolify_manager`    | Coolify instance management          | `coolify status`, `coolify services`, `coolify apps`  |
-| `gcp_manager`        | Google Cloud Platform utilities      | `switch-config`, `create-config`, `list-configs`      |
-| `docker_manager`     | Docker system management             | `docker clean --extensive`, `docker clean --minimal`  | 
-| `kubernetes_manager` | Kubernetes context switching         | `kctx <context>`                                      |
-| `setup_manager`      | Development environment setup        | `setup minimal`, `setup dev-full`, `setup apps`       |
-| `misc_manager`       | Miscellaneous utilities              | `backup-db`, `deploy-app`                             |
+| Module               | Description                          | Key Commands                                                |
+| -------------------- | ------------------------------------ | ----------------------------------------------------------- |
+| `ssh_manager`        | SSH connection and target management | `ssh list-targets`, `ssh add-target`, `ssh connect`         |
+| `ssh_backup`         | SSH-key backup operations            | `ssh-backup export`, `ssh-backup import`                    |
+| `ssh_rsync`          | SSH backup rsync synchronization     | `ssh-rsync upload-backup`, `ssh-rsync download-backup`      |
+| `coolify_manager`    | Coolify instance management          | `coolify status`, `coolify services`, `coolify apps`        |
+| `gcp_manager`        | Google Cloud Platform utilities      | `gcp config switch`, `gcp config create`, `gcp config list` |
+| `docker_manager`     | Docker system management             | `docker clean --extensive`, `docker clean --minimal`        |
+| `kubernetes_manager` | Kubernetes context switching         | `kctx <context>`                                            |
+| `setup_manager`      | Development environment setup        | `setup minimal`, `setup dev-full`, `setup apps`             |
+| `misc_manager`       | Miscellaneous utilities              | `backup-db`, `deploy-app`                                   |
 
 ## 🛠 Installation
 
@@ -311,17 +311,20 @@ max setup apps
 
 ### GCP Manager (`gcp_manager`)
 
-Manage Google Cloud Platform configurations.
+Manage Google Cloud Platform configurations and authentication with seamless switching.
 
 ```bash
 # List available configurations
-max list-configs
+max gcp config list
 
-# Switch configurations
-max switch-config production
+# Switch configurations (with automatic ADC and quota project switching)
+max gcp config switch production
 
-# Create new configuration
-max create-config development
+# Create new configuration (with full authentication setup)
+max gcp config create development
+
+# Interactive mode - choose from menu
+max gcp config switch
 ```
 
 ### Coolify Manager (`coolify_manager`)
@@ -617,7 +620,7 @@ MIT License - see LICENSE file for details.
 - Review module documentation
 
 if for some reason the max command only responds with mock responses after running the test_bootstrap.sh script, you can run the following command to reset the max command to the original state:
+
 ```bash
 cp -r maxcli ~/.local/lib/python/
 ```
-

@@ -182,7 +182,7 @@ def init_config(args):
         print("\n💡 You can update/rewrite this configuration anytime with: max init --force")
         print("\n🎯 Next steps:")
         print("   • Try: max setup apps --interactive")
-        print("   • Or:  max create-config")
+        print("   • Or:  max gcp config create")
         print("   • Or:  max --help")
         
         # Footer box
