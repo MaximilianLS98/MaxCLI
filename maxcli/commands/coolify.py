@@ -1,11 +1,11 @@
 """Coolify API management commands."""
 import json
 import sys
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import subprocess
 from ..config import get_config_value
 
-def get_coolify_config() -> tuple[Optional[str], Optional[str]]:
+def get_coolify_config() -> Tuple[Optional[str], Optional[str]]:
     """Get Coolify API key and instance URL from config."""
     api_key = get_config_value('coolify_api_key')
     instance_url = get_config_value('coolify_instance_url')

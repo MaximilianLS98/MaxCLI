@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .config import init_config
 from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands
@@ -314,7 +314,7 @@ def get_latest_release_version() -> Optional[str]:
     return None
 
 
-def check_for_updates_quietly() -> tuple[bool, Optional[str]]:
+def check_for_updates_quietly() -> Tuple[bool, Optional[str]]:
     """Check for available updates using GitHub releases.
     
     Returns:
