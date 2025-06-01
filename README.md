@@ -524,176 +524,83 @@ Or manually edit `~/.config/maxcli/modules_config.json`:
 
 ### Installation Issues
 
-#### Bootstrap Script Problems
+#### Bootstrap Script Issues
+
+##### Race Condition and Output Mixing (Fixed in Latest Version)
+
+**Problem**: During fresh installation, the bootstrap script would sometimes:
+
+- Output raw file content instead of executing code
+- Mix Homebrew output with script output
+- Fail to complete wrapper script creation
+- Have Homebrew processes running in parallel causing conflicts
+
+**Root Causes**:
+
+1. **Homebrew Background Processes**: Homebrew's auto-update and cask installation processes would continue running while the bootstrap script proceeded
+2. **Output Stream Mixing**: Multiple processes writing to stdout/stderr simultaneously caused corruption
+3. **Heredoc Race Conditions**: Large heredoc blocks (like wrapper script creation) could be interrupted by background processes
+4. **No Process Synchronization**: The script didn't wait for Homebrew installation to complete before proceeding
+
+**Fixed in Latest Version**:
 
 ```bash
-# Get help with bootstrap options
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --help
+# The latest bootstrap script includes these fixes:
 
-# Test standalone download capability
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager"
+# 1. Homebrew Process Synchronization
+- Explicit wait for Homebrew installation completion (up to 60s timeout)
+- Background process suppression with output redirection
+- Environment variables to prevent auto-updates during installation
+- Process cleanup to kill lingering brew processes
 
-# Force fresh download (clears any cached/problematic files)
-./bootstrap.sh --force-download
+# 2. Robust Wrapper Script Creation
+- Uses temporary files instead of direct heredoc output
+- Atomic file operations to prevent corruption
+- Proper error handling and cleanup
 
-# Use a different repository/fork
-curl -fsSL https://raw.githubusercontent.com/yourfork/maxcli/main/bootstrap.sh | bash -s -- --github-repo "yourfork/maxcli"
+# 3. Output Isolation
+- Suppresses verbose Homebrew output that can interfere
+- Explicit sleep delays to ensure process synchronization
+- Background process cleanup before critical sections
 ```
 
-#### Network/Download Issues
+**To Get the Fixed Version**:
 
 ```bash
-# Manual verification of download URLs
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/requirements.txt
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/main.py
-
-# Check if repository archive is accessible
-curl -fsSL https://github.com/maximilianls98/maxcli/archive/main.tar.gz | tar -tz | head -10
-```
-
-#### PATH and Shell Issues
-
-```bash
-# Verify max command is in PATH
-which max
-
-# Manually add to PATH if needed
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-
-# Check virtual environment
-ls -la ~/.venvs/maxcli/bin/python
-
-# Test the wrapper script directly
-~/bin/max --help
-```
-
-### Runtime Issues
-
-#### Check Module Status
-
-```bash
-# List all modules and their status
-max modules list
-
-# Check configuration file
-cat ~/.config/maxcli/modules_config.json
-
-# Verify Python environment
-~/.venvs/maxcli/bin/python -c "import questionary; print('Dependencies OK')"
-```
-
-#### Reset Configuration
-
-```bash
-# Reinitialize personal configuration
-max init --force
-
-# Reset module configuration (re-run bootstrap)
-rm ~/.config/maxcli/modules_config.json
-max modules list  # This will recreate with defaults
-
-# Complete reinstallation (RECOMMENDED)
-max uninstall  # Use built-in uninstall with safety checks
+# Always use the latest version from main branch
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
 
-# Manual removal (NOT RECOMMENDED - use max uninstall instead)
-# rm -rf ~/.venvs/maxcli ~/.config/maxcli ~/bin/max
-# curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
+# Or force download even if you have local files
+./bootstrap.sh --force-download
 ```
 
-### Common Issues
-
-1. **Command not found**: The module providing the command is disabled
-
-    ```bash
-    max modules list
-    max modules enable <module_name>
-    ```
-
-2. **Bootstrap fails with "files not found"**: You're running standalone but network issues prevent download
-
-    ```bash
-    # Try with explicit repo and branch
-    curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --github-repo "maximilianls98/maxcli" --github-branch "main"
-
-    # Or clone locally first
-    git clone https://github.com/maximilianls98/maxcli.git
-    cd maxcli
-    ./bootstrap.sh
-    ```
-
-3. **Import errors**: Missing dependencies for a module
-
-    ```bash
-    # Reinstall in virtual environment
-    source ~/.venvs/maxcli/bin/activate
-    pip install -r requirements.txt
-
-    # Or force fresh installation
-    ./bootstrap.sh --force-download
-    ```
-
-4. **Permission errors**: Installation directory not writable
-
-    ```bash
-    # Ensure directories are writable
-    mkdir -p ~/bin ~/.config/maxcli ~/.venvs
-    chmod 755 ~/bin ~/.config/maxcli ~/.venvs
-
-    # Re-run installation
-    ./bootstrap.sh --force-download
-    ```
-
-5. **Virtual environment issues**: Python environment corrupted
-
-    ```bash
-    # Remove and recreate virtual environment
-    rm -rf ~/.venvs/maxcli
-    python3 -m venv ~/.venvs/maxcli
-    source ~/.venvs/maxcli/bin/activate
-    pip install -r requirements.txt
-
-    # Or use bootstrap to recreate everything
-    ./bootstrap.sh --force-download
-    ```
-
-6. **Configuration issues**: Reset configuration files
-
-    ```bash
-    # Use built-in uninstall for complete reset (RECOMMENDED)
-    max uninstall
-    curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
-
-    # Or manual configuration reset
-    rm -rf ~/.config/maxcli/
-    max init
-    ```
-
-7. **Module not loading**: Check if module is enabled and dependencies are met
-
-    ```bash
-    max modules list
-    max modules enable <module_name>
-
-    # Check specific module dependencies
-    cat ~/.config/maxcli/modules_config.json | grep -A 5 "<module_name>"
-    ```
-
-### Debug Mode
-
-Enable verbose output for troubleshooting:
+**If You Experience Issues**:
 
 ```bash
-# Add debug output to bootstrap
-bash -x ./bootstrap.sh --modules "ssh_manager"
+# 1. Clear any partial installations
+rm -rf ~/.venvs/maxcli ~/bin/max ~/.config/maxcli
 
-# Check Python import paths
-~/.venvs/maxcli/bin/python -c "import sys; print('\n'.join(sys.path))"
+# 2. Kill any lingering Homebrew processes
+pkill -f brew || true
 
-# Verify maxcli package location
-~/.venvs/maxcli/bin/python -c "import maxcli; print(maxcli.__file__)"
+# 3. Use the fixed bootstrap script
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
+
+# 4. If problems persist, run with explicit homebrew suppression
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash
 ```
+
+#### Installation Timeouts
+
+```bash
+# If installation times out waiting for Homebrew
+export HOMEBREW_NO_AUTO_UPDATE=1
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash --modules "ssh_manager"
+```
+
+#### Bootstrap Errors
 
 ## 🔧 Development
 

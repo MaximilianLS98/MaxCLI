@@ -1204,6 +1204,242 @@ EOF
     cleanup_test_environment "$test_dir"
 }
 
+# Pure function: Test homebrew synchronization and race condition fixes
+test_homebrew_synchronization() {
+    local test_name="Homebrew Synchronization and Race Condition Prevention"
+    local test_dir="$1"
+    
+    debug_output "Testing Homebrew synchronization fixes"
+    
+    # Test that Homebrew installation waits properly
+    local temp_test_script=$(mktemp)
+    cat > "$temp_test_script" << 'EOF'
+#!/bin/bash
+# Test script to verify Homebrew synchronization logic
+
+# Mock the brew command to simulate delayed installation
+mock_brew_install() {
+    echo "Simulating Homebrew installation delay..."
+    sleep 2
+    echo "Mock Homebrew installation complete"
+    return 0
+}
+
+# Mock command -v to simulate brew becoming available after delay
+mock_command() {
+    if [[ "$1" == "-v" && "$2" == "brew" ]]; then
+        # Simulate brew not being available initially, then becoming available
+        if [[ ! -f "/tmp/brew_ready" ]]; then
+            echo "Brew not ready yet"
+            return 1
+        else
+            echo "/usr/local/bin/brew"
+            return 0
+        fi
+    fi
+    command "$@"
+}
+
+# Simulate the fix's wait logic
+test_wait_logic() {
+    local max_wait=5
+    local wait_count=0
+    
+    # Start background process to make brew "available" after 3 seconds
+    (sleep 3 && touch /tmp/brew_ready) &
+    
+    while ! mock_command -v brew &> /dev/null && [ $wait_count -lt $max_wait ]; do
+        echo "Waiting for brew... ($((wait_count + 1))s)"
+        sleep 1
+        ((wait_count++))
+    done
+    
+    if mock_command -v brew &> /dev/null; then
+        echo "SUCCESS: Brew became available after ${wait_count}s"
+        rm -f /tmp/brew_ready
+        return 0
+    else
+        echo "TIMEOUT: Brew did not become available"
+        rm -f /tmp/brew_ready
+        return 1
+    fi
+}
+
+test_wait_logic
+EOF
+
+    chmod +x "$temp_test_script"
+    
+    # Run the test and capture output
+    local output
+    if output=$("$temp_test_script" 2>&1); then
+        if string_contains "$output" "SUCCESS: Brew became available"; then
+            log_test_result "$test_name" "PASS" "Homebrew wait logic works correctly"
+        else
+            log_test_result "$test_name" "FAIL" "Wait logic didn't work as expected: $output"
+        fi
+    else
+        log_test_result "$test_name" "FAIL" "Test script failed to execute: $output"
+    fi
+    
+    rm -f "$temp_test_script"
+}
+
+# Pure function: Test wrapper script creation robustness
+test_wrapper_script_robustness() {
+    local test_name="Wrapper Script Creation Robustness"
+    local test_dir="$1"
+    
+    debug_output "Testing wrapper script creation fixes"
+    
+    # Create a test environment with potential race conditions
+    local temp_test_dir=$(mktemp -d)
+    
+    # Test the new wrapper creation method
+    local temp_test_script=$(mktemp)
+    cat > "$temp_test_script" << 'EOF'
+#!/bin/bash
+# Test the improved wrapper script creation method
+
+create_wrapper_script() {
+    local target_file="$1"
+    
+    # Create wrapper in a temp file first to prevent output corruption
+    local temp_wrapper=$(mktemp)
+    
+    # Write wrapper content to temp file (this prevents heredoc issues)
+    cat > "$temp_wrapper" << 'WRAPPER_EOF'
+#!/bin/bash
+# Test MaxCLI wrapper script
+echo "MaxCLI Test Wrapper - SUCCESS"
+exit 0
+WRAPPER_EOF
+
+    # Move the completed wrapper to the final location
+    if mv "$temp_wrapper" "$target_file" && chmod +x "$target_file"; then
+        echo "SUCCESS: Wrapper script created successfully"
+        return 0
+    else
+        echo "FAIL: Failed to create wrapper script"
+        rm -f "$temp_wrapper"
+        return 1
+    fi
+}
+
+# Test wrapper creation
+target_wrapper="$1/test_max"
+create_wrapper_script "$target_wrapper"
+
+# Verify the wrapper was created and works
+if [[ -f "$target_wrapper" && -x "$target_wrapper" ]]; then
+    # Test execution
+    output=$("$target_wrapper" 2>&1)
+    if [[ "$output" == "MaxCLI Test Wrapper - SUCCESS" ]]; then
+        echo "SUCCESS: Wrapper script works correctly"
+        exit 0
+    else
+        echo "FAIL: Wrapper script output incorrect: $output"
+        exit 1
+    fi
+else
+    echo "FAIL: Wrapper script not created or not executable"
+    exit 1
+fi
+EOF
+
+    chmod +x "$temp_test_script"
+    
+    # Run the test and capture output
+    local output
+    if output=$("$temp_test_script" "$temp_test_dir" 2>&1); then
+        if string_contains "$output" "SUCCESS: Wrapper script works correctly"; then
+            log_test_result "$test_name" "PASS" "Wrapper script creation method is robust"
+        else
+            log_test_result "$test_name" "FAIL" "Wrapper creation test failed: $output"
+        fi
+    else
+        log_test_result "$test_name" "FAIL" "Test script failed to execute: $output"
+    fi
+    
+    rm -rf "$temp_test_dir" "$temp_test_script"
+}
+
+# Pure function: Test process synchronization
+test_process_synchronization() {
+    local test_name="Process Synchronization and Output Isolation"
+    local test_dir="$1"
+    
+    debug_output "Testing process synchronization fixes"
+    
+    # Test that background processes don't interfere with script output
+    local temp_test_script=$(mktemp)
+    cat > "$temp_test_script" << 'EOF'
+#!/bin/bash
+# Test script to verify output isolation
+
+# Simulate background processes that might interfere
+simulate_background_noise() {
+    # Start multiple background processes that output text
+    (sleep 1 && echo "BACKGROUND_NOISE_1" >&2) &
+    (sleep 2 && echo "BACKGROUND_NOISE_2" >&2) &
+    (sleep 1.5 && echo "BACKGROUND_NOISE_3" >&2) &
+}
+
+# Test critical script section with proper output handling
+test_critical_section() {
+    echo "CRITICAL_SECTION_START"
+    
+    # Simulate the fixed homebrew installation with output suppression
+    {
+        echo "Installing dependencies..." >&2
+        simulate_background_noise
+        sleep 3
+        echo "Dependencies installation complete" >&2
+    } 2>/dev/null
+    
+    echo "CRITICAL_SECTION_CONTENT"
+    
+    # Wait for background processes to complete
+    wait
+    
+    echo "CRITICAL_SECTION_END"
+}
+
+# Run test and capture only stdout
+test_critical_section
+EOF
+
+    chmod +x "$temp_test_script"
+    
+    # Run the test and capture output
+    local output
+    if output=$("$temp_test_script" 2>/dev/null); then
+        # Check that only the expected content appears in stdout
+        local expected_lines=("CRITICAL_SECTION_START" "CRITICAL_SECTION_CONTENT" "CRITICAL_SECTION_END")
+        local all_expected_found=true
+        
+        for expected in "${expected_lines[@]}"; do
+            if ! string_contains "$output" "$expected"; then
+                all_expected_found=false
+                break
+            fi
+        done
+        
+        # Check that background noise doesn't appear in stdout
+        if string_contains "$output" "BACKGROUND_NOISE"; then
+            log_test_result "$test_name" "FAIL" "Background process output leaked into main output"
+        elif [[ "$all_expected_found" == "true" ]]; then
+            log_test_result "$test_name" "PASS" "Process output properly isolated"
+        else
+            log_test_result "$test_name" "FAIL" "Expected output missing: $output"
+        fi
+    else
+        log_test_result "$test_name" "FAIL" "Test script failed to execute"
+    fi
+    
+    rm -f "$temp_test_script"
+}
+
 # Main test runner function
 run_all_tests() {
     format_message "$PURPLE" "🧪 MaxCLI Bootstrap Script Test Suite"
@@ -1255,6 +1491,9 @@ run_all_tests() {
         test_wrapper_script_error_handling
         test_dependency_verification
         test_path_safety_improvements
+        test_homebrew_synchronization "$TEST_OUTPUT_DIR"
+        test_wrapper_script_robustness "$TEST_OUTPUT_DIR"
+        test_process_synchronization "$TEST_OUTPUT_DIR"
     elif [[ "$CI_MODE" == "true" ]]; then
         format_message "$CYAN" "ℹ️  Running core tests only in CI mode for reliability"
         

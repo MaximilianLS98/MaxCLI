@@ -238,8 +238,33 @@ install_homebrew() {
     
     if check_admin_privileges; then
         echo "🔑 Admin privileges detected - installing Homebrew system-wide"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        return $?
+        # CRITICAL FIX: Wait for Homebrew installation to complete and suppress background processes
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" 2>/dev/null
+        
+        # Wait for brew command to be available
+        local max_wait=60
+        local wait_count=0
+        while ! command -v brew &> /dev/null && [ $wait_count -lt $max_wait ]; do
+            echo "⏳ Waiting for Homebrew installation to complete... ($((wait_count + 1))s)"
+            sleep 1
+            ((wait_count++))
+            # Refresh PATH in case Homebrew was installed to /opt/homebrew
+            if [ -f /opt/homebrew/bin/brew ]; then
+                export PATH="/opt/homebrew/bin:$PATH"
+            fi
+        done
+        
+        # Final check
+        if command -v brew &> /dev/null; then
+            echo "✅ Homebrew installation completed successfully"
+            # Prevent auto-updates during our script execution
+            export HOMEBREW_NO_AUTO_UPDATE=1
+            export HOMEBREW_NO_INSTALL_CLEANUP=1
+            return 0
+        else
+            echo "❌ Homebrew installation failed or timed out"
+            return 1
+        fi
     else
         echo "⚠️  No admin privileges detected"
         echo "📁 Installing Homebrew to user directory (~/.homebrew)"
@@ -247,10 +272,14 @@ install_homebrew() {
         # Create user homebrew directory
         mkdir -p ~/.homebrew
         
-        # Download and extract Homebrew
-        if curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C ~/.homebrew; then
+        # Download and extract Homebrew with proper error handling
+        if curl -L https://github.com/Homebrew/brew/tarball/master 2>/dev/null | tar xz --strip 1 -C ~/.homebrew 2>/dev/null; then
             # Add to PATH for this session
             export PATH="$HOME/.homebrew/bin:$PATH"
+            
+            # Prevent auto-updates
+            export HOMEBREW_NO_AUTO_UPDATE=1
+            export HOMEBREW_NO_INSTALL_CLEANUP=1
             
             # Add to shell configuration
             if ! grep -q 'export PATH="$HOME/.homebrew/bin:$PATH"' ~/.zshrc 2>/dev/null; then
@@ -322,29 +351,55 @@ setup_python() {
 # Function to install additional dependencies
 install_dependencies() {
     echo ""
-    echo "📦 Installing additional dependencies..."
+    echo "🔧 Installing additional dependencies..."
     
-    # Try to install via Homebrew if available
+    # CRITICAL FIX: Ensure all Homebrew processes are completed before proceeding
     if command -v brew &> /dev/null; then
-        echo "🔧 Installing pipx and GPG via Homebrew..."
-        brew install pipx gnupg gnupg2 2>/dev/null || {
-            echo "⚠️  Some Homebrew packages failed to install"
-            echo "💡 GPG encryption features may not be available"
-        }
+        echo "📦 Updating Homebrew package list (this may take a moment)..."
+        # Suppress verbose output and auto-updates to prevent process mixing
+        brew update >/dev/null 2>&1 || echo "⚠️  Homebrew update had issues, continuing..."
         
-        # Ensure pipx is in PATH
-        pipx ensurepath 2>/dev/null || echo "⚠️  pipx not available"
+        # Install dependencies one by one with explicit wait
+        dependencies=("gpg" "python" "rsync" "curl" "wget")
+        
+        for dep in "${dependencies[@]}"; do
+            if ! command -v "$dep" &> /dev/null; then
+                echo "📦 Installing $dep..."
+                # Install with output suppression to prevent mixing
+                if brew install "$dep" >/dev/null 2>&1; then
+                    echo "✅ $dep installed successfully"
+                else
+                    echo "⚠️  Failed to install $dep via Homebrew, may already exist or require manual installation"
+                fi
+            else
+                echo "✅ $dep already available"
+            fi
+        done
+        
+        # CRITICAL FIX: Wait for any background Homebrew processes to complete
+        echo "⏳ Ensuring all Homebrew processes are complete..."
+        sleep 2
+        
+        # Kill any lingering background brew processes that might interfere
+        pkill -f "brew" 2>/dev/null || true
+        sleep 1
+        
+        echo "✅ Dependency installation phase completed"
     else
-        echo "⚠️  Homebrew not available - skipping optional dependencies"
-        echo "💡 GPG encryption features will not be available"
+        echo "⚠️  Homebrew not available, skipping package installation"
         echo "💡 You can install them manually later if needed"
     fi
 }
 
-# Main installation flow
+# Main installation flow with proper sequencing
 install_homebrew
 setup_python
 install_dependencies
+
+# CRITICAL FIX: Add explicit wait to ensure all background processes are done
+echo ""
+echo "⏳ Ensuring all system processes are synchronized..."
+sleep 3
 
 # Create virtual environment for maxcli
 echo ""
@@ -444,8 +499,15 @@ chmod +x ~/bin/max
 mkdir -p ~/.local/lib/python
 cp -r "$SCRIPT_DIR/maxcli" ~/.local/lib/python/
 
-# Create a wrapper script that always uses the maxcli virtual environment
-cat > ~/bin/max << 'EOF'
+# CRITICAL FIX: Create wrapper script using a more robust method that prevents output mixing
+create_wrapper_script() {
+    echo "🔧 Creating MaxCLI wrapper script..."
+    
+    # Create wrapper in a temp file first to prevent output corruption
+    local temp_wrapper=$(mktemp)
+    
+    # Write wrapper content to temp file (this prevents heredoc issues)
+    cat > "$temp_wrapper" << 'WRAPPER_EOF'
 #!/bin/bash
 # MaxCLI wrapper script that ensures the correct Python environment is used.
 # This script always uses the maxcli virtual environment created during bootstrap.
@@ -602,9 +664,20 @@ except Exception as e:
     print('   https://github.com/maximilianls98/maxcli/issues')
     sys.exit(1)
 " "$@"
-EOF
+WRAPPER_EOF
 
-chmod +x ~/bin/max
+    # Move the completed wrapper to the final location
+    if mv "$temp_wrapper" ~/bin/max && chmod +x ~/bin/max; then
+        echo "✅ MaxCLI wrapper script created successfully"
+    else
+        echo "❌ Failed to create wrapper script"
+        rm -f "$temp_wrapper"
+        exit 1
+    fi
+}
+
+# Now call the function to create the wrapper script
+create_wrapper_script
 
 # Add to PATH if not already there
 if ! grep -q 'export PATH="$HOME/bin:$PATH"' ~/.zshrc; then
