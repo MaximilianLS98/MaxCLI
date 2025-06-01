@@ -816,6 +816,8 @@ MaxCLI uses a modular architecture. You can enable the modules you need
 and keep the CLI clean and focused. You can always change this later
 using 'max modules enable/disable <module>' commands.
 
+Note: If running non-interactively (e.g., via curl|bash), defaults will be used.
+
 Available modules:
 
 📱 ssh_manager      - SSH connection management and key handling
@@ -834,6 +836,7 @@ EOF
     ask_yes_no() {
         local prompt="$1"
         local default="$2"
+        local answer
         
         if [[ "$default" == "y" ]]; then
             prompt="$prompt [Y/n]"
@@ -841,18 +844,32 @@ EOF
             prompt="$prompt [y/N]"
         fi
         
-        echo -n "$prompt: "
-        read -r answer
-        
-        # Use default if empty
-        if [[ -z "$answer" ]]; then
-            answer="$default"
+        # Check if we have a TTY (interactive terminal)
+        if [[ -t 0 ]]; then
+            # Interactive mode - can read from user
+            while true; do
+                echo -n "$prompt: "
+                read -r answer
+                
+                # Use default if empty
+                if [[ -z "$answer" ]]; then
+                    answer="$default"
+                fi
+                
+                case "$answer" in
+                    [Yy]|[Yy][Ee][Ss]) return 0 ;;
+                    [Nn]|[Nn][Oo]) return 1 ;;
+                    *) echo "Please answer y/yes or n/no" ;;
+                esac
+            done
+        else
+            # Non-interactive mode (piped input like curl|bash) - use defaults
+            echo "$prompt: (using default: $default)"
+            case "$default" in
+                [Yy]) return 0 ;;
+                *) return 1 ;;
+            esac
         fi
-        
-        case "$answer" in
-            [Yy]|[Yy][Ee][Ss]) return 0 ;;
-            *) return 1 ;;
-        esac
     }
 
     echo "Select which modules to enable (press Enter for default recommendation):"
@@ -1013,8 +1030,14 @@ cat << "EOF"
 EOF
 
 echo ""
+echo "🔄 IMPORTANT: To use the 'max' command, you need to:"
+echo ""
+echo "   ┌─────────────────────────────────────────────────────┐"
+echo "   │  🔁 RESTART YOUR TERMINAL or run: source ~/.zshrc   │"
+echo "   └─────────────────────────────────────────────────────┘"
+echo ""
 echo "🎯 Next steps:"
-echo "   1. Restart your terminal or run: source ~/.zshrc"
+echo "   1. ✅ Restart terminal/reload shell (required!)"
 echo "   2. Initialize personal config: max init"
 echo "   3. Explore available commands: max --help"
 echo "   4. See your enabled modules: max modules list"
@@ -1023,12 +1046,6 @@ echo "💡 Module Management:"
 echo "   • View modules: max modules list"
 echo "   • Enable more: max modules enable <module>"
 echo "   • Disable modules: max modules disable <module>"
-echo ""
-echo "🔧 Installation Modes:"
-echo "   • Standalone: curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_BRANCH/bootstrap.sh | bash"
-echo "   • Local: git clone && cd maxcli && ./bootstrap.sh"
-echo "   • Force download: ./bootstrap.sh --force-download"
-echo "   • Custom repo: ./bootstrap.sh --github-repo=yourfork/maxcli"
 echo ""
 
 # Show enabled command examples
@@ -1086,3 +1103,7 @@ cat << "EOF"
     │  Ready to supercharge your workflow! 🚀 │
     └─────────────────────────────────────────┘
 EOF
+
+echo ""
+echo "🔄 REMEMBER: For the 'max' command to work, you must restart your terminal!"
+echo "   Or run: source ~/.zshrc"
