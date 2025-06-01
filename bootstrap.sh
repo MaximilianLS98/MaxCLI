@@ -738,7 +738,7 @@ done
 enabled_modules_json+="]"
 
 # Create the complete module configuration with the new format
-cat > ~/.config/maxcli/max_modules.json << EOF
+cat > ~/.config/maxcli/modules_config.json << EOF
 {
   "bootstrap_version": "1.0.0",
   "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
@@ -777,7 +777,7 @@ cat > ~/.config/maxcli/max_modules.json << EOF
     "gcp_manager": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " gcp_manager " ]]; then echo "true"; else echo "false"; fi),
       "description": "Google Cloud Platform configuration and authentication management",
-      "commands": ["switch-config", "create-config", "list-configs"],
+      "commands": ["gcp"],
       "dependencies": ["gcloud"]
     },
     "coolify_manager": {
@@ -794,8 +794,8 @@ cat > ~/.config/maxcli/max_modules.json << EOF
     },
     "misc_manager": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " misc_manager " ]]; then echo "true"; else echo "false"; fi),
-      "description": "Database backup utilities and application deployment tools",
-      "commands": ["backup-db", "deploy-app"],
+      "description": "Database backup utilities, CSV data processing, and application deployment tools",
+      "commands": ["backup-db", "deploy-app", "process-csv"],
       "dependencies": ["pg_dump"]
     }
   }

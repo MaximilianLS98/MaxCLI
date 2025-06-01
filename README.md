@@ -193,7 +193,7 @@ This creates `~/.config/maxcli/config.json` with your:
 
 ### Module Configuration
 
-Modules are configured in `~/.config/maxcli/max_modules.json`:
+Modules are configured in `~/.config/maxcli/modules_config.json`:
 
 ```json
 {
@@ -504,7 +504,7 @@ Add your module to the configuration:
 max modules enable my_module
 ```
 
-Or manually edit `~/.config/maxcli/max_modules.json`:
+Or manually edit `~/.config/maxcli/modules_config.json`:
 
 ```json
 {
@@ -577,7 +577,7 @@ ls -la ~/.venvs/maxcli/bin/python
 max modules list
 
 # Check configuration file
-cat ~/.config/maxcli/max_modules.json
+cat ~/.config/maxcli/modules_config.json
 
 # Verify Python environment
 ~/.venvs/maxcli/bin/python -c "import questionary; print('Dependencies OK')"
@@ -590,7 +590,7 @@ cat ~/.config/maxcli/max_modules.json
 max init --force
 
 # Reset module configuration (re-run bootstrap)
-rm ~/.config/maxcli/max_modules.json
+rm ~/.config/maxcli/modules_config.json
 max modules list  # This will recreate with defaults
 
 # Complete reinstallation (RECOMMENDED)
@@ -677,7 +677,7 @@ curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstra
     max modules enable <module_name>
 
     # Check specific module dependencies
-    cat ~/.config/maxcli/max_modules.json | grep -A 5 "<module_name>"
+    cat ~/.config/maxcli/modules_config.json | grep -A 5 "<module_name>"
     ```
 
 ### Debug Mode

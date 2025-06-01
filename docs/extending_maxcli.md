@@ -301,7 +301,7 @@ def install_kernel(args) -> None:
 Add your new module to the module information in the bootstrap script or update the existing configuration:
 
 ```bash
-# Add to ~/.config/maxcli/max_modules.json
+# Add to ~/.config/maxcli/modules_config.json
 {
     "enabled_modules": ["ssh_manager", "setup_manager", "jupyter_manager"],
     "module_info": {

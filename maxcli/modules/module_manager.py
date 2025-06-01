@@ -55,26 +55,6 @@ AVAILABLE_MODULES = {
     "ssh_rsync": {
         "description": "Remote backup synchronization using rsync over SSH",
         "commands": ["rsync-backup"]
-    },
-    "terraform_manager": {
-        "description": "Terraform infrastructure management and automation",
-        "commands": ["terraform", "tf"]
-    },
-    "aws_manager": {
-        "description": "Amazon Web Services resource management and utilities",
-        "commands": ["aws"]
-    },
-    "database_manager": {
-        "description": "Database connection management and backup utilities",
-        "commands": ["db", "database"]
-    },
-    "monitoring": {
-        "description": "System monitoring, alerting, and health check utilities",
-        "commands": ["monitor", "health"]
-    },
-    "deployment": {
-        "description": "Application deployment automation and CI/CD integration",
-        "commands": ["deploy"]
     }
 }
 
