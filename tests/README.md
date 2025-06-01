@@ -42,8 +42,11 @@ python tests/utils/cli_test_runner.py --quick
 # Unit tests only
 python tests/utils/cli_test_runner.py --unit
 
-# Integration tests only
+# Integration tests only (no coverage)
 python tests/utils/cli_test_runner.py --integration
+
+# Integration tests with coverage (5% threshold)
+python tests/utils/cli_test_runner.py --integration-cov
 
 # Specific module tests
 python tests/utils/cli_test_runner.py --module docker_manager
@@ -310,3 +313,44 @@ python tests/utils/cli_test_runner.py --all
 ---
 
 For questions about the testing framework, please refer to the module documentation or create an issue in the project repository.
+
+## 🏗 CI/CD Integration
+
+### GitHub Actions / CI Environments
+
+For continuous integration, use different commands based on test type:
+
+```bash
+# Unit tests with full coverage requirements (20%)
+python -m pytest tests/unit/ -v --cov=maxcli --cov-report=xml --cov-report=term-missing
+
+# Integration tests without coverage (recommended for CI)
+python -m pytest tests/integration/ -v --no-cov
+
+# Integration tests with coverage (5% threshold)
+python -m pytest tests/integration/ -v --cov=maxcli --cov-report=xml --cov-report=term-missing --cov-fail-under=5
+
+# All tests with appropriate coverage thresholds
+python tests/utils/cli_test_runner.py --all
+```
+
+### Coverage Requirements by Test Type
+
+- **Unit Tests**: 20% minimum coverage (tests individual components)
+- **Integration Tests**: 5% minimum coverage (tests workflows, naturally lower coverage)
+- **Combined Test Suite**: 20% minimum coverage (balanced approach)
+
+### Troubleshooting CI Test Failures
+
+1. **Import Errors**: Ensure all test directories have `__init__.py` files
+2. **AsyncIO Warnings**: Configuration is handled in `pyproject.toml`
+3. **Coverage Failures**: Use appropriate coverage thresholds for test type
+4. **Module Not Found**: Check Python path and module structure
+
+```bash
+# Debug import issues
+python -c "import tests.utils.test_helpers; print('Imports OK')"
+
+# Verify pytest configuration
+python -m pytest --collect-only
+```

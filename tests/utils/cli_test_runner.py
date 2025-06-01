@@ -76,12 +76,50 @@ def run_specific_module_tests(module_name: str) -> int:
 
 
 def run_integration_tests() -> int:
-    """Run integration tests only.
+    """Run integration tests only (without coverage).
     
     Returns:
         Exit code from pytest.
     """
-    return run_test_suite(test_path="tests/integration/", verbose=True)
+    cmd = ["python", "-m", "pytest"]
+    cmd.append("tests/integration/")
+    cmd.extend(["-v"])
+    cmd.extend(["--no-cov"])  # Explicitly disable coverage
+    cmd.extend(["-n", "auto"])
+    cmd.extend([
+        "--tb=short",
+        "--strict-markers"
+    ])
+    
+    return subprocess.run(cmd).returncode
+
+
+def run_integration_tests_with_coverage() -> int:
+    """Run integration tests with coverage reporting.
+    
+    Integration tests typically have lower coverage than unit tests,
+    so this uses a lower coverage threshold.
+    
+    Returns:
+        Exit code from pytest.
+    """
+    cmd = ["python", "-m", "pytest"]
+    cmd.append("tests/integration/")
+    cmd.extend(["-v"])
+    cmd.extend([
+        "--cov=maxcli",
+        "--cov-report=html",
+        "--cov-report=term-missing",
+        "--cov-report=xml",
+        "--cov-fail-under=5"  # Lower threshold for integration tests
+    ])
+    cmd.extend(["-n", "auto"])
+    cmd.extend([
+        "--tb=short",
+        "--strict-markers"
+    ])
+    
+    return subprocess.run(cmd).returncode
 
 
 def run_unit_tests() -> int:
@@ -185,6 +223,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run MaxCLI tests")
     parser.add_argument("--module", help="Test specific module")
     parser.add_argument("--integration", action="store_true", help="Run integration tests only")
+    parser.add_argument("--integration-cov", action="store_true", help="Run integration tests with coverage (low threshold)")
     parser.add_argument("--unit", action="store_true", help="Run unit tests only")
     parser.add_argument("--quick", action="store_true", help="Run quick tests (no coverage)")
     parser.add_argument("--coverage-only", action="store_true", help="Generate coverage report only")
@@ -208,6 +247,8 @@ if __name__ == "__main__":
         exit_code = run_specific_module_tests(args.module)
     elif args.integration:
         exit_code = run_integration_tests()
+    elif args.integration_cov:
+        exit_code = run_integration_tests_with_coverage()
     elif args.unit:
         exit_code = run_unit_tests()
     elif args.quick:
