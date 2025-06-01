@@ -251,8 +251,7 @@ def connect_target(name: Optional[str] = None) -> bool:
         print("Make sure SSH client is installed and in your PATH.")
         return False
     
-    # This line is unreachable due to os.execvp, but needed for type checking
-    return True
+    # This function never returns due to os.execvp replacing the process
 
 
 def interactive_target_picker(target_names: List[str]) -> Optional[str]:
@@ -389,9 +388,9 @@ def disable_password_authentication(target: Dict[str, Union[str, int]]) -> bool:
     ]
     
     # Build SSH command to run all commands remotely
-    ssh_cmd = [
+    ssh_cmd: List[str] = [
         "ssh",
-        "-i", target["key"],
+        "-i", str(target["key"]),
         "-p", str(target["port"]),
         f"{target['user']}@{target['host']}",
         " && ".join(commands_to_run)

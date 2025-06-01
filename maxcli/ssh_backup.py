@@ -307,7 +307,7 @@ def select_backup_file() -> Optional[Path]:
         Path to selected backup file, or None if selection cancelled/failed
     """
     # Find available backup files
-    backup_files = []
+    backup_files: List[Path] = []
     
     # Look for backup files in common locations
     search_locations = [
@@ -358,9 +358,9 @@ def select_backup_file() -> Optional[Path]:
             return None
         elif selected == "Enter custom path...":
             # Custom path option
-            file_path = questionary.text("Enter path to backup file:").ask()
-            if file_path:
-                backup_path = Path(file_path).expanduser()
+            file_path_result = questionary.text("Enter path to backup file:").ask()
+            if file_path_result:
+                backup_path = Path(file_path_result).expanduser()
                 return backup_path if backup_path.exists() else None
             return None
         else:

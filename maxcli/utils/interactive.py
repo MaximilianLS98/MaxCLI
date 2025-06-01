@@ -8,7 +8,7 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
         import questionary
         
         if current_value:
-            value = questionary.text(
+            value_result = questionary.text(
                 f"{prompt} (current: {current_value})",
                 default=current_value,
                 style=questionary.Style([
@@ -17,7 +17,7 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
                 ])
             ).ask()
         else:
-            value = questionary.text(
+            value_result = questionary.text(
                 prompt,
                 style=questionary.Style([
                     ('question', 'bold'),
@@ -25,14 +25,14 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
                 ])
             ).ask()
         
-        if value is None:
+        if value_result is None:
             if required:
                 print("❌ This field is required. Please provide a value.")
                 return prompt_for_config_value(prompt, current_value, required)
             else:
                 return ""
         
-        value = value.strip()
+        value = value_result.strip()
         
         if required and not value:
             print("❌ This field is required. Please provide a value.")

@@ -871,7 +871,7 @@ def main() -> None:
     
     # Enable autocomplete if argcomplete is installed
     try:
-        import argcomplete  # type: ignore # Optional dependency
+        import argcomplete  # Optional dependency
         argcomplete.autocomplete(parser)
     except ImportError:
         pass

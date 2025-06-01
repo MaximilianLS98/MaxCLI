@@ -155,7 +155,7 @@ def load_modules_config() -> Dict[str, Any]:
     
     try:
         with open(MODULES_CONFIG_FILE, 'r') as f:
-            config = json.load(f)
+            config: Dict[str, Any] = json.load(f)
         
         # Handle legacy format (boolean flags) - convert to new format
         if "enabled_modules" not in config:
@@ -254,7 +254,8 @@ def get_enabled_modules() -> List[str]:
         List of module names that are enabled.
     """
     config = load_modules_config()
-    return config.get("enabled_modules", [])
+    enabled_modules: List[str] = config.get("enabled_modules", [])
+    return enabled_modules
 
 
 def get_available_modules() -> Set[str]:
