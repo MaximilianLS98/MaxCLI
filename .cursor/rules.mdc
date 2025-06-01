@@ -1,0 +1,289 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# MaxCLI Cursor Rules
+# These rules ensure consistent code style and architecture patterns for MaxCLI
+
+## Project Overview
+You are working on **MaxCLI**, a modular command-line interface for developers and DevOps engineers. The project emphasizes:
+- **Modular architecture** with pluggable modules that can be enabled/disabled
+- **Functional programming** patterns with pure functions and immutable data structures  
+- **Extensive documentation** and error handling
+- **User experience** focused on clarity and helpful output
+- **Type safety** with comprehensive type hints
+
+## Architecture Principles
+
+### Modular Design
+- All functionality is organized into discrete modules in `maxcli/modules/`
+- Each module should be self-contained and independently testable
+- Modules are dynamically loaded based on user configuration
+- Use the module manager pattern for registration and discovery
+
+### Code Organization
+```
+maxcli/
+├── cli.py              # Main CLI entry point and core commands
+├── config.py           # Configuration management
+├── commands/           # Command implementations (legacy, being migrated to modules)
+├── modules/            # Modular functionality (preferred location)
+├── utils/              # Shared utilities and helpers
+└── saved_functions/    # User-saved function snippets
+```
+
+### Function Design
+- Prefer **pure functions** whenever possible
+- Functions should have a single responsibility
+- Use descriptive names that clearly indicate purpose
+- Always include comprehensive docstrings with Args/Returns/Raises sections
+
+## Code Style Guidelines
+
+### Python Conventions
+- Use Python 3.8+ features and type hints consistently
+- Follow PEP 8 for code formatting
+- Use `snake_case` for functions and variables
+- Use `UPPER_CASE` for constants
+- Prefer `pathlib.Path` over `os.path` for file operations
+
+### Type Hints
+- Always include type hints for function parameters and return values
+- Use `typing` module imports: `List`, `Dict`, `Optional`, `Union`, etc.
+- Use `None` instead of `Optional` where appropriate in newer Python versions
+- Example:
+```python
+from typing import List, Optional, Dict, Any
+
+def process_targets(targets: List[str], options: Optional[Dict[str, Any]] = None) -> bool:
+    """Process a list of targets with optional configuration."""
+    pass
+```
+
+### Documentation Standards
+- Every module, class, and public function must have comprehensive docstrings
+- Use Google-style docstrings with Args, Returns, Raises, and Examples sections
+- Include usage examples for complex functions
+- Add inline comments for non-obvious logic
+- Example:
+```python
+def backup_ssh_keys(output_path: Path, encryption_key: Optional[str] = None) -> bool:
+    """
+    Create an encrypted backup of SSH keys and configurations.
+    
+    This function safely backs up SSH keys, known_hosts, and config files
+    to a secure archive that can be restored later.
+    
+    Args:
+        output_path: Path where the backup archive will be created
+        encryption_key: Optional GPG encryption key ID for additional security
+        
+    Returns:
+        True if backup was successful, False otherwise
+        
+    Raises:
+        BackupError: If backup process fails due to permission or I/O issues
+        EncryptionError: If GPG encryption fails when encryption_key is provided
+        
+    Example:
+        >>> backup_path = Path("~/backups/ssh_backup.tar.gz")
+        >>> success = backup_ssh_keys(backup_path, "user@example.com")
+        >>> if success:
+        ...     print("Backup completed successfully")
+    """
+    pass
+```
+
+### Error Handling
+- Use specific exception types rather than bare `except` clauses
+- Provide helpful error messages that guide users toward solutions
+- Log errors appropriately with context
+- Use early returns to reduce nesting
+- Example:
+```python
+try:
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+except subprocess.CalledProcessError as e:
+    print(f"❌ Command failed: {' '.join(command)}")
+    print(f"Error: {e.stderr.strip()}")
+    return None
+except FileNotFoundError:
+    print(f"❌ Command not found: {command[0]}")
+    print("💡 Make sure the required tool is installed and in your PATH")
+    return None
+```
+
+## Module Development Guidelines
+
+### Creating New Modules
+1. Create a new file in `maxcli/modules/` following the naming pattern `*_manager.py`
+2. Implement required functions: `register_commands()` and module-specific command handlers
+3. Add comprehensive docstrings and type hints
+4. Include the module in `module_manager.py` discovery
+5. Update documentation and help text
+
+### Module Structure Template
+```python
+"""
+{Module Name} Manager - {Brief Description}
+
+This module provides {functionality description} for MaxCLI.
+It includes commands for {list main features}.
+"""
+
+import argparse
+import sys
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+
+def register_commands(subparsers) -> None:
+    """
+    Register all commands for this module with the argument parser.
+    
+    Args:
+        subparsers: The subparsers object to add commands to
+    """
+    # Command registration implementation
+    pass
+
+
+def command_handler(args: argparse.Namespace) -> None:
+    """
+    Handle the main command for this module.
+    
+    Args:
+        args: Parsed command line arguments
+    """
+    # Command implementation
+    pass
+
+
+# Helper functions (private, start with underscore)
+def _validate_configuration(config: Dict[str, Any]) -> bool:
+    """Validate module configuration."""
+    pass
+```
+
+### Command Implementation
+- Commands should provide clear, actionable output with emojis for visual clarity
+- Use consistent output patterns: ✅ for success, ❌ for errors, ⚠️ for warnings, 💡 for tips
+- Implement `--help` text that explains usage and provides examples
+- Support both interactive and non-interactive modes where appropriate
+
+## User Experience Guidelines
+
+### Output Formatting
+- Use emojis consistently for visual feedback:
+  - ✅ Success operations
+  - ❌ Error conditions  
+  - ⚠️ Warnings and cautions
+  - 💡 Tips and suggestions
+  - 🚀 Starting operations
+  - 📝 Information and status
+  - 🔧 Configuration changes
+- Include progress indicators for long-running operations
+- Provide clear next steps when operations complete
+
+### Configuration Management
+- Store user configurations in `~/.config/maxcli/`
+- Use JSON format for configuration files with clear structure
+- Validate configurations and provide helpful error messages
+- Support both global and module-specific configurations
+- Include migration logic for configuration format changes
+
+### CLI Argument Design
+- Use descriptive argument names that clearly indicate purpose
+- Provide short and long forms for common options (`-v`/`--verbose`)
+- Include helpful descriptions in argument help text
+- Group related arguments logically
+- Provide sensible defaults that work for most users
+
+## Testing Guidelines
+
+### Unit Testing
+- Write tests for all public functions using pytest
+- Use descriptive test names that explain what is being tested
+- Include both positive and negative test cases
+- Mock external dependencies and system calls
+- Test error conditions and edge cases
+
+### Integration Testing
+- Test module registration and command discovery
+- Verify configuration file handling
+- Test cross-module interactions where applicable
+- Include end-to-end command execution tests
+
+## Dependencies and Imports
+
+### Dependency Management
+- Minimize external dependencies to reduce installation complexity
+- Use only Python standard library for core functionality when possible
+- Document optional dependencies clearly in requirements.txt
+- Gracefully handle missing optional dependencies
+
+### Import Organization
+```python
+# Standard library imports (alphabetical)
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+# Third-party imports (alphabetical)
+import questionary  # Only if available
+
+# Local application imports (relative)
+from ..config import get_config, save_config
+from ..utils.helpers import validate_input, format_output
+```
+
+## Security Considerations
+### Sensitive Data Handling
+- Never log or print sensitive information (passwords, tokens, keys)
+- Use secure storage for authentication credentials
+- Implement proper file permissions for configuration files
+- Sanitize user inputs, especially for system commands
+
+### Command Execution
+- Use `subprocess` with explicit arguments rather than shell execution
+- Validate and sanitize all user inputs used in commands
+- Use `shlex` for proper shell escaping when necessary
+- Implement timeouts for long-running operations
+
+## Performance Guidelines
+
+### Efficiency
+- Lazy load modules and dependencies when possible
+- Cache expensive operations (file reads, network calls)
+- Use generators for processing large datasets
+- Implement proper resource cleanup with context managers
+
+### Memory Management
+- Avoid loading large files entirely into memory
+- Use streaming for file operations when appropriate
+- Clean up temporary files and resources
+- Monitor memory usage in long-running operations
+
+## Contributing Guidelines
+
+### Code Reviews
+- Review for adherence to functional programming principles
+- Verify comprehensive documentation and type hints
+- Test error handling and edge cases
+- Ensure user experience consistency
+- Check for security vulnerabilities
+
+### Git Workflow
+- Use descriptive commit messages following conventional commits
+- Include tests for new functionality
+- Update documentation for user-facing changes
+- Ensure modules are properly registered and discoverable
+
+## Examples and Templates
+
+Refer to existing modules like `ssh_manager.py`, `docker_manager.py`, and `gcp_manager.py` for implementation patterns and conventions. These modules demonstrate the preferred coding style, documentation standards, and user experience patterns for MaxCLI.
