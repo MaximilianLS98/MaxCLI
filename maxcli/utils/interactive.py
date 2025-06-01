@@ -1,6 +1,6 @@
 """Interactive prompt utilities."""
 import sys
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, cast
 
 def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, required: bool = True) -> str:
     """Prompt user for a configuration value with optional current value display."""
@@ -32,7 +32,7 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
             else:
                 return ""
         
-        value = value_result.strip()
+        value = cast(str, value_result).strip()
         
         if required and not value:
             print("❌ This field is required. Please provide a value.")

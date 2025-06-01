@@ -21,48 +21,11 @@ def create_test_config(enabled_modules: List[str]) -> Dict[str, Any]:
     Returns:
         Complete configuration dictionary.
     """
-    # Use the exact same module definitions as in AVAILABLE_MODULES
-    available_modules = {
-        "ssh_manager": {
-            "description": "SSH connection and target management",
-            "commands": ["ssh"]
-        },
-        "ssh_backup": {
-            "description": "SSH key backup and restore with GPG encryption",
-            "commands": ["ssh-backup export", "ssh-backup import"]
-        },
-        "ssh_rsync": {
-            "description": "SSH-based rsync operations and remote backup",
-            "commands": ["ssh-rsync upload-backup", "ssh-rsync download-backup"]
-        },
-        "docker_manager": {
-            "description": "Docker system management and cleanup",
-            "commands": ["docker"]
-        },
-        "kubernetes_manager": {
-            "description": "Kubernetes context switching and cluster management",
-            "commands": ["kctx"]
-        },
-        "gcp_manager": {
-            "description": "Google Cloud Platform configuration and authentication management",
-            "commands": ["gcp"]
-        },
-        "coolify_manager": {
-            "description": "Coolify instance management through REST API",
-            "commands": ["coolify"]
-        },
-        "setup_manager": {
-            "description": "Development environment setup and configuration profiles",
-            "commands": ["setup"]
-        },
-        "misc_manager": {
-            "description": "Database backup utilities, CSV data processing, and application deployment tools",
-            "commands": ["backup-db", "deploy-app", "process-csv"]
-        }
-    }
+    # Import the actual AVAILABLE_MODULES from production code
+    from maxcli.modules.module_manager import AVAILABLE_MODULES
     
     module_info = {}
-    for module_name, module_data in available_modules.items():
+    for module_name, module_data in AVAILABLE_MODULES.items():
         module_info[module_name] = {
             "enabled": module_name in enabled_modules,
             "description": module_data["description"],
