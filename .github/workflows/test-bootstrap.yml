@@ -7,12 +7,14 @@ on:
         paths:
             - 'bootstrap.sh'
             - 'test_bootstrap.sh'
+            - 'bootstrap_fix_test.sh'
             - '.github/workflows/test-bootstrap.yml'
     pull_request:
         branches: [main]
         paths:
             - 'bootstrap.sh'
             - 'test_bootstrap.sh'
+            - 'bootstrap_fix_test.sh'
             - '.github/workflows/test-bootstrap.yml'
     # Allow manual workflow runs
     workflow_dispatch:
@@ -31,10 +33,17 @@ jobs:
                   # Ensure scripts are executable
                   chmod +x bootstrap.sh
                   chmod +x test_bootstrap.sh
+                  chmod +x bootstrap_fix_test.sh
 
                   # Install required tools for testing
                   sudo apt-get update
                   sudo apt-get install -y curl wget
+
+            - name: Run Bootstrap Race Condition Fix Tests
+              id: test_bootstrap_fixes
+              run: |
+                  echo "🔧 Running bootstrap race condition fix validation tests..."
+                  ./bootstrap_fix_test.sh
 
             - name: Run Comprehensive Bootstrap Tests
               id: test_bootstrap
@@ -49,6 +58,7 @@ jobs:
                   # Check bash syntax
                   bash -n bootstrap.sh
                   bash -n test_bootstrap.sh
+                  bash -n bootstrap_fix_test.sh
 
                   echo "✅ Script syntax is valid"
 
@@ -73,6 +83,7 @@ jobs:
               run: |
                   echo "📊 Test Summary"
                   echo "==============="
+                  echo "✅ Bootstrap race condition fixes validated"
                   echo "✅ Comprehensive test suite completed"
                   echo "✅ All tests run in complete isolation"
                   echo "✅ User settings protection verified"
@@ -106,6 +117,12 @@ jobs:
               run: |
                   chmod +x bootstrap.sh
                   chmod +x test_bootstrap.sh
+                  chmod +x bootstrap_fix_test.sh
+
+            - name: Run Bootstrap Race Condition Fix Tests on macOS
+              run: |
+                  echo "🍎 Running bootstrap fix tests on macOS..."
+                  ./bootstrap_fix_test.sh
 
             - name: Run Comprehensive Tests on macOS
               run: |
@@ -131,6 +148,12 @@ jobs:
               run: |
                   chmod +x bootstrap.sh
                   chmod +x test_bootstrap.sh
+                  chmod +x bootstrap_fix_test.sh
+
+            - name: Run Bootstrap Fix Tests
+              run: |
+                  echo "🔧 Running bootstrap fix validation tests..."
+                  ./bootstrap_fix_test.sh
 
             - name: Run Tests in Verbose Mode
               if: matrix.test-mode == 'verbose'

@@ -1295,17 +1295,26 @@ test_wrapper_script_robustness() {
     # Create a test environment with potential race conditions
     local temp_test_dir=$(mktemp -d)
     
-    # Test the new wrapper creation method
+    # Test the new wrapper creation method with proper error handling
     local temp_test_script=$(mktemp)
     cat > "$temp_test_script" << 'EOF'
 #!/bin/bash
 # Test the improved wrapper script creation method
 
+# Change to a safe directory to avoid shell-init errors
+cd /tmp || exit 1
+
 create_wrapper_script() {
     local target_file="$1"
     
+    # Ensure target directory exists
+    local target_dir
+    target_dir="$(dirname "$target_file")"
+    mkdir -p "$target_dir" || return 1
+    
     # Create wrapper in a temp file first to prevent output corruption
-    local temp_wrapper=$(mktemp)
+    local temp_wrapper
+    temp_wrapper=$(mktemp) || return 1
     
     # Write wrapper content to temp file (this prevents heredoc issues)
     cat > "$temp_wrapper" << 'WRAPPER_EOF'
@@ -1326,42 +1335,58 @@ WRAPPER_EOF
     fi
 }
 
-# Test wrapper creation
+# Test wrapper creation with absolute path to avoid directory issues
 target_wrapper="$1/test_max"
-create_wrapper_script "$target_wrapper"
-
-# Verify the wrapper was created and works
-if [[ -f "$target_wrapper" && -x "$target_wrapper" ]]; then
-    # Test execution
-    output=$("$target_wrapper" 2>&1)
-    if [[ "$output" == "MaxCLI Test Wrapper - SUCCESS" ]]; then
-        echo "SUCCESS: Wrapper script works correctly"
-        exit 0
+if create_wrapper_script "$target_wrapper"; then
+    # Verify the wrapper was created and works
+    if [[ -f "$target_wrapper" && -x "$target_wrapper" ]]; then
+        # Test execution with proper error handling
+        if output=$("$target_wrapper" 2>&1); then
+            if [[ "$output" == "MaxCLI Test Wrapper - SUCCESS" ]]; then
+                echo "SUCCESS: Wrapper script works correctly"
+                exit 0
+            else
+                echo "FAIL: Wrapper script output incorrect: $output"
+                exit 1
+            fi
+        else
+            echo "FAIL: Wrapper script execution failed"
+            exit 1
+        fi
     else
-        echo "FAIL: Wrapper script output incorrect: $output"
+        echo "FAIL: Wrapper script not created or not executable"
         exit 1
     fi
 else
-    echo "FAIL: Wrapper script not created or not executable"
+    echo "FAIL: Wrapper script creation failed"
     exit 1
 fi
 EOF
 
     chmod +x "$temp_test_script"
     
-    # Run the test and capture output
+    # Run the test and capture output with proper working directory
     local output
+    local exit_code=0
+    
+    # Ensure we're in a safe directory before running the test
+    cd /tmp || return 1
+    
     if output=$("$temp_test_script" "$temp_test_dir" 2>&1); then
-        if string_contains "$output" "SUCCESS: Wrapper script works correctly"; then
-            log_test_result "$test_name" "PASS" "Wrapper script creation method is robust"
-        else
-            log_test_result "$test_name" "FAIL" "Wrapper creation test failed: $output"
-        fi
+        exit_code=0
     else
-        log_test_result "$test_name" "FAIL" "Test script failed to execute: $output"
+        exit_code=$?
     fi
     
-    rm -rf "$temp_test_dir" "$temp_test_script"
+    if [[ $exit_code -eq 0 ]] && string_contains "$output" "SUCCESS: Wrapper script works correctly"; then
+        log_test_result "$test_name" "PASS" "Wrapper script creation method is robust"
+    else
+        log_test_result "$test_name" "FAIL" "Wrapper creation test failed with exit code $exit_code: $output"
+    fi
+    
+    # Clean up with proper error handling
+    [[ -d "$temp_test_dir" ]] && rm -rf "$temp_test_dir"
+    [[ -f "$temp_test_script" ]] && rm -f "$temp_test_script"
 }
 
 # Pure function: Test process synchronization

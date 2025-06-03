@@ -1,0 +1,3 @@
+## New Module Ideas
+1. Project file manager - Given a standard folder structure, allow you to quickly list all projects (maybe tag projects with "work", "personal", "school", etc. to filter lists). Add new projects to the list. Save other config info for each project, maybe "max project open <project name>" will open the project in the default editor along with terminal session(s).
+2. Deployment manager - Allow you to quickly deploy a project to a cloud service. Maybe couple it with the project file manager so that you can quickly deploy a project to a cloud service? 
