@@ -1064,7 +1064,7 @@ EOF
     debug_output "Wrapper script exit code: $exit_code"
     debug_output "Wrapper script output: $output"
     
-    if [[ $exit_code -eq 1 ]] && string_contains "$output" "Troubleshooting Guide" && string_contains "$output" "bootstrap script didn't complete"; then
+    if [[ $exit_code -eq 1 ]] && string_contains "$output" "Troubleshooting Guide" && string_contains "$output" "bootstrap script didn't complete successfully"; then
         log_test_result "$test_name" "PASS" "Enhanced wrapper script provides comprehensive error handling"
     else
         log_test_result "$test_name" "FAIL" "Wrapper script error handling test failed. Exit code: $exit_code"
