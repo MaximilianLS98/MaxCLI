@@ -1545,7 +1545,13 @@ run_all_tests() {
     format_message "$PURPLE" "======================"
     format_message "$CYAN" "Total Tests Run: $TESTS_RUN"
     format_message "$GREEN" "Tests Passed: $TESTS_PASSED"
-    format_message "$RED" "Tests Failed: $TESTS_FAILED"
+    
+    # Use appropriate color based on whether tests failed
+    if [[ $TESTS_FAILED -eq 0 ]]; then
+        format_message "$GREEN" "Tests Failed: $TESTS_FAILED"
+    else
+        format_message "$RED" "Tests Failed: $TESTS_FAILED"
+    fi
     
     if [[ $TESTS_FAILED -eq 0 ]]; then
         echo ""
