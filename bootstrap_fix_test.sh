@@ -8,6 +8,15 @@ set -euo pipefail
 echo "🧪 Testing Bootstrap Script Race Condition Fixes"
 echo "================================================="
 
+# Add error handler for debugging
+error_handler() {
+    echo "❌ ERROR: Script failed at line $1"
+    echo "📍 Exit code: $2"
+    exit 1
+}
+
+trap 'error_handler ${LINENO} $?' ERR
+
 # Test 1: Validate Homebrew synchronization logic
 echo ""
 echo "Test 1: Homebrew Process Synchronization Logic"
@@ -18,7 +27,12 @@ validate_homebrew_wait_logic() {
     echo "✅ Testing Homebrew wait and timeout logic..."
     
     # Create a mock test that simulates the fixed logic
-    local temp_script=$(mktemp)
+    local temp_script
+    temp_script=$(mktemp) || {
+        echo "❌ FAIL: Could not create temp script"
+        return 1
+    }
+    
     cat > "$temp_script" << 'EOF'
 #!/bin/bash
 # Simulate the fixed Homebrew wait logic
@@ -28,6 +42,7 @@ mock_brew_available=false
 
 # Simulate brew becoming available after 2 seconds
 (sleep 2 && echo "brew_ready" > /tmp/brew_ready_flag) &
+bg_pid=$!
 
 # Test the wait logic from bootstrap fix
 max_wait=5
@@ -38,6 +53,10 @@ while [[ ! -f "/tmp/brew_ready_flag" ]] && [ $wait_count -lt $max_wait ]; do
     sleep 1
     ((wait_count++))
 done
+
+# Clean up background process
+kill $bg_pid 2>/dev/null || true
+wait $bg_pid 2>/dev/null || true
 
 if [[ -f "/tmp/brew_ready_flag" ]]; then
     echo "✅ Homebrew became available after ${wait_count}s"
@@ -50,16 +69,21 @@ else
 fi
 EOF
 
-    chmod +x "$temp_script"
+    chmod +x "$temp_script" || {
+        echo "❌ FAIL: Could not make temp script executable"
+        rm -f "$temp_script"
+        return 1
+    }
     
     if "$temp_script"; then
         echo "✅ PASS: Homebrew wait logic works correctly"
+        rm -f "$temp_script"
+        return 0
     else
         echo "❌ FAIL: Homebrew wait logic failed"
+        rm -f "$temp_script"
         return 1
     fi
-    
-    rm -f "$temp_script"
 }
 
 # Test 2: Validate wrapper script creation robustness
@@ -70,7 +94,12 @@ echo "------------------------------------------"
 validate_wrapper_creation() {
     echo "✅ Testing robust wrapper script creation..."
     
-    local test_dir=$(mktemp -d)
+    local test_dir
+    test_dir=$(mktemp -d) || {
+        echo "❌ FAIL: Could not create test directory"
+        return 1
+    }
+    
     local wrapper_file="$test_dir/test_max"
     
     # Test the new wrapper creation method
@@ -78,7 +107,8 @@ validate_wrapper_creation() {
         local target_file="$1"
         
         # Use temporary file method (like the fix)
-        local temp_wrapper=$(mktemp)
+        local temp_wrapper
+        temp_wrapper=$(mktemp) || return 1
         
         cat > "$temp_wrapper" << 'WRAPPER_EOF'
 #!/bin/bash
@@ -90,7 +120,7 @@ WRAPPER_EOF
         if mv "$temp_wrapper" "$target_file" && chmod +x "$target_file"; then
             return 0
         else
-            rm -f "$temp_wrapper"
+            rm -f "$temp_wrapper" 2>/dev/null || true
             return 1
         fi
     }
@@ -100,6 +130,8 @@ WRAPPER_EOF
         # Test wrapper execution
         if [[ -x "$wrapper_file" ]] && "$wrapper_file" > /dev/null 2>&1; then
             echo "✅ PASS: Wrapper script creation is robust"
+            rm -rf "$test_dir"
+            return 0
         else
             echo "❌ FAIL: Wrapper script not executable or failed to run"
             rm -rf "$test_dir"
@@ -110,8 +142,6 @@ WRAPPER_EOF
         rm -rf "$test_dir"
         return 1
     fi
-    
-    rm -rf "$test_dir"
 }
 
 # Test 3: Validate output isolation
@@ -122,14 +152,21 @@ echo "--------------------------------"
 validate_output_isolation() {
     echo "✅ Testing process output isolation..."
     
-    local temp_script=$(mktemp)
+    local temp_script
+    temp_script=$(mktemp) || {
+        echo "❌ FAIL: Could not create temp script"
+        return 1
+    }
+    
     cat > "$temp_script" << 'EOF'
 #!/bin/bash
 # Test output isolation like the fix
 
 # Start background processes that output to stderr
 (sleep 1 && echo "BACKGROUND_NOISE_1" >&2) &
+bg_pid1=$!
 (sleep 1.5 && echo "BACKGROUND_NOISE_2" >&2) &
+bg_pid2=$!
 
 # Critical section with output suppression (like the fix)
 {
@@ -142,24 +179,33 @@ validate_output_isolation() {
 echo "MAIN_OUTPUT_LINE"
 
 # Wait for background processes
-wait
+wait $bg_pid1 2>/dev/null || true
+wait $bg_pid2 2>/dev/null || true
 EOF
 
-    chmod +x "$temp_script"
+    chmod +x "$temp_script" || {
+        echo "❌ FAIL: Could not make script executable"
+        rm -f "$temp_script"
+        return 1
+    }
     
     # Capture only stdout
     local output
-    output=$("$temp_script" 2>/dev/null)
-    
-    if [[ "$output" == "MAIN_OUTPUT_LINE" ]]; then
-        echo "✅ PASS: Output isolation works correctly"
+    if output=$("$temp_script" 2>/dev/null); then
+        if [[ "$output" == "MAIN_OUTPUT_LINE" ]]; then
+            echo "✅ PASS: Output isolation works correctly"
+            rm -f "$temp_script"
+            return 0
+        else
+            echo "❌ FAIL: Output contamination detected: '$output'"
+            rm -f "$temp_script"
+            return 1
+        fi
     else
-        echo "❌ FAIL: Output contamination detected: '$output'"
+        echo "❌ FAIL: Test script execution failed"
         rm -f "$temp_script"
         return 1
     fi
-    
-    rm -f "$temp_script"
 }
 
 # Test 4: Validate environment variable controls
