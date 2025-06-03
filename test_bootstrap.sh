@@ -1217,6 +1217,9 @@ test_homebrew_synchronization() {
 #!/bin/bash
 # Test script to verify Homebrew synchronization logic
 
+# Ensure we start in a stable directory to avoid shell-init errors
+cd /tmp || exit 1
+
 # Mock the brew command to simulate delayed installation
 mock_brew_install() {
     echo "Simulating Homebrew installation delay..."
@@ -1229,7 +1232,7 @@ mock_brew_install() {
 mock_command() {
     if [[ "$1" == "-v" && "$2" == "brew" ]]; then
         # Simulate brew not being available initially, then becoming available
-        if [[ ! -f "/tmp/brew_ready" ]]; then
+        if [[ ! -f "/tmp/brew_ready_$$" ]]; then
             echo "Brew not ready yet"
             return 1
         else
@@ -1244,9 +1247,11 @@ mock_command() {
 test_wait_logic() {
     local max_wait=5
     local wait_count=0
+    local brew_ready_file="/tmp/brew_ready_$$"
     
     # Start background process to make brew "available" after 3 seconds
-    (sleep 3 && touch /tmp/brew_ready) &
+    (sleep 3 && touch "$brew_ready_file") &
+    local bg_pid=$!
     
     while ! mock_command -v brew &> /dev/null && [ $wait_count -lt $max_wait ]; do
         echo "Waiting for brew... ($((wait_count + 1))s)"
@@ -1254,13 +1259,17 @@ test_wait_logic() {
         ((wait_count++))
     done
     
+    # Clean up background process
+    kill $bg_pid 2>/dev/null || true
+    wait $bg_pid 2>/dev/null || true
+    
     if mock_command -v brew &> /dev/null; then
         echo "SUCCESS: Brew became available after ${wait_count}s"
-        rm -f /tmp/brew_ready
+        rm -f "$brew_ready_file"
         return 0
     else
         echo "TIMEOUT: Brew did not become available"
-        rm -f /tmp/brew_ready
+        rm -f "$brew_ready_file"
         return 1
     fi
 }
@@ -1270,8 +1279,13 @@ EOF
 
     chmod +x "$temp_test_script"
     
-    # Run the test and capture output
+    # Run the test and capture output in a stable working directory
     local output
+    local current_dir=$(pwd)
+    
+    # Change to a stable directory before running the test
+    cd /tmp || return 1
+    
     if output=$("$temp_test_script" 2>&1); then
         if string_contains "$output" "SUCCESS: Brew became available"; then
             log_test_result "$test_name" "PASS" "Homebrew wait logic works correctly"
@@ -1282,6 +1296,8 @@ EOF
         log_test_result "$test_name" "FAIL" "Test script failed to execute: $output"
     fi
     
+    # Restore original directory
+    cd "$current_dir" || true
     rm -f "$temp_test_script"
 }
 
@@ -1368,6 +1384,7 @@ EOF
     # Run the test and capture output with proper working directory
     local output
     local exit_code=0
+    local current_dir=$(pwd)
     
     # Ensure we're in a safe directory before running the test
     cd /tmp || return 1
@@ -1377,6 +1394,9 @@ EOF
     else
         exit_code=$?
     fi
+    
+    # Restore original directory
+    cd "$current_dir" || true
     
     if [[ $exit_code -eq 0 ]] && string_contains "$output" "SUCCESS: Wrapper script works correctly"; then
         log_test_result "$test_name" "PASS" "Wrapper script creation method is robust"
