@@ -1495,33 +1495,11 @@ run_all_tests() {
     mkdir -p "$TEST_OUTPUT_DIR"
     debug_output "Created main test directory: $TEST_OUTPUT_DIR"
     
-    # Run core test functions (simplified for CI reliability)
-    test_help_security_fix
-    test_help_command_variations
-    test_invalid_arguments
-    test_basic_functionality
-    
-    # Run additional tests only if not in CI mode or if basic tests pass
-    if [[ "$CI_MODE" != "true" ]] && [[ $TESTS_FAILED -eq 0 ]]; then
-        test_module_presets
-        test_force_download
-        test_github_repo_customization
-        test_local_mode_detection
-        test_standalone_mode_detection
-        test_config_file_generation
-        test_missing_files_error_handling
-        test_non_admin_environment
-        test_virtual_environment_error_handling
-        test_python_fallback_mechanisms
-        test_wrapper_script_error_handling
-        test_dependency_verification
-        test_path_safety_improvements
-        test_homebrew_synchronization "$TEST_OUTPUT_DIR"
-        test_wrapper_script_robustness "$TEST_OUTPUT_DIR"
-        test_process_synchronization "$TEST_OUTPUT_DIR"
-    elif [[ "$CI_MODE" == "true" ]]; then
+    # Run tests based on mode
+    if [[ "$CI_MODE" == "true" ]]; then
         format_message "$CYAN" "ℹ️  Running core tests only in CI mode for reliability"
         
+        # Run core test functions (simplified for CI reliability)
         test_help_security_fix
         test_help_command_variations
         test_invalid_arguments
@@ -1530,6 +1508,32 @@ run_all_tests() {
         test_force_download
         test_non_admin_environment
         test_path_safety_improvements
+    else
+        # Run all tests in non-CI mode
+        test_help_security_fix
+        test_help_command_variations
+        test_invalid_arguments
+        test_basic_functionality
+        
+        # Run additional comprehensive tests if basic tests pass
+        if [[ $TESTS_FAILED -eq 0 ]]; then
+            test_module_presets
+            test_force_download
+            test_github_repo_customization
+            test_local_mode_detection
+            test_standalone_mode_detection
+            test_config_file_generation
+            test_missing_files_error_handling
+            test_non_admin_environment
+            test_virtual_environment_error_handling
+            test_python_fallback_mechanisms
+            test_wrapper_script_error_handling
+            test_dependency_verification
+            test_path_safety_improvements
+            test_homebrew_synchronization "$TEST_OUTPUT_DIR"
+            test_wrapper_script_robustness "$TEST_OUTPUT_DIR"
+            test_process_synchronization "$TEST_OUTPUT_DIR"
+        fi
     fi
     
     # Clean up main test directory
