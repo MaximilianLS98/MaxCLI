@@ -8,15 +8,6 @@ set -euo pipefail
 echo "🧪 Testing Bootstrap Script Race Condition Fixes"
 echo "================================================="
 
-# Add error handler for debugging
-error_handler() {
-    echo "❌ ERROR: Script failed at line $1"
-    echo "📍 Exit code: $2"
-    exit 1
-}
-
-trap 'error_handler ${LINENO} $?' ERR
-
 # Test 1: Validate Homebrew synchronization logic
 echo ""
 echo "Test 1: Homebrew Process Synchronization Logic"
@@ -286,10 +277,10 @@ failed=0
 for result in "${test_results[@]}"; do
     if [[ "$result" == PASS:* ]]; then
         echo "✅ $result"
-        ((passed++))
+        passed=$((passed + 1))
     else
         echo "❌ $result"
-        ((failed++))
+        failed=$((failed + 1))
     fi
 done
 
