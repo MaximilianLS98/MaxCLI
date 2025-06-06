@@ -55,11 +55,15 @@ AVAILABLE_MODULES = {
     "ssh_rsync": {
         "description": "Remote backup synchronization using rsync over SSH",
         "commands": ["rsync-backup"]
+    },
+    "config_backup": {
+        "description": "Backup and restore MaxCLI configuration files with local and remote storage options",
+        "commands": ["backup-config"]
     }
 }
 
 # Default enabled modules (safe defaults)
-DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager"]
+DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_backup"]
 
 
 def ensure_config_directory() -> None:

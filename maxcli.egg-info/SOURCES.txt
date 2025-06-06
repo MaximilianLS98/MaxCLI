@@ -20,6 +20,7 @@ maxcli/commands/kubernetes.py
 maxcli/commands/misc.py
 maxcli/commands/setup.py
 maxcli/modules/__init__.py
+maxcli/modules/config_backup.py
 maxcli/modules/coolify_manager.py
 maxcli/modules/docker_manager.py
 maxcli/modules/gcp_manager.py
