@@ -5,20 +5,117 @@
 # Path to the maxcli virtual environment
 MAXCLI_VENV="$HOME/.venvs/maxcli"
 MAXCLI_PYTHON="$MAXCLI_VENV/bin/python"
+MAXCLI_ACTIVATE="$MAXCLI_VENV/bin/activate"
+
+# Function to show detailed troubleshooting information
+show_troubleshooting() {
+    echo ""
+    echo "🔧 MaxCLI Troubleshooting Guide:"
+    echo "================================="
+    echo ""
+    echo "📋 Environment Status:"
+    echo "   Virtual environment: $MAXCLI_VENV"
+    echo "   Python executable: $MAXCLI_PYTHON"
+    echo "   Activation script: $MAXCLI_ACTIVATE"
+    echo ""
+    
+    # Check what exists
+    if [[ -d "$MAXCLI_VENV" ]]; then
+        echo "   ✅ Virtual environment directory exists"
+    else
+        echo "   ❌ Virtual environment directory missing"
+    fi
+    
+    if [[ -f "$MAXCLI_PYTHON" ]]; then
+        echo "   ✅ Python executable exists"
+        echo "   📊 Python version: $("$MAXCLI_PYTHON" --version 2>/dev/null || echo 'Failed to get version')"
+    else
+        echo "   ❌ Python executable missing"
+    fi
+    
+    if [[ -f "$MAXCLI_ACTIVATE" ]]; then
+        echo "   ✅ Activation script exists"
+    else
+        echo "   ❌ Activation script missing"
+    fi
+    
+    # Check for MaxCLI package
+    if [[ -d "$HOME/.local/lib/python/maxcli" ]]; then
+        echo "   ✅ MaxCLI package directory exists"
+    else
+        echo "   ❌ MaxCLI package directory missing"
+    fi
+    
+    echo ""
+    echo "🚀 Possible Solutions:"
+    echo ""
+    echo "1️⃣  Re-run the bootstrap script:"
+    echo "   curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash"
+    echo ""
+    echo "2️⃣  Manual virtual environment recreation:"
+    echo "   rm -rf ~/.venvs/maxcli"
+    echo "   python3 -m venv ~/.venvs/maxcli"
+    echo "   source ~/.venvs/maxcli/bin/activate"
+    echo "   pip install questionary colorama requests pynacl"
+    echo ""
+    echo "3️⃣  Check system Python:"
+    echo "   python3 --version"
+    echo "   python3 -m venv --help"
+    echo ""
+    echo "4️⃣  Alternative installation (if you have Homebrew):"
+    echo "   brew install python"
+    echo "   python3 -m venv ~/.venvs/maxcli"
+    echo "   # Then re-run bootstrap"
+    echo ""
+    echo "💡 For more help, visit: https://github.com/maximilianls98/maxcli/issues"
+}
 
 # Check if the maxcli virtual environment exists
 if [[ ! -f "$MAXCLI_PYTHON" ]]; then
-    echo "❌ Error: MaxCLI virtual environment not found at $MAXCLI_VENV"
-    echo "💡 Please run the bootstrap script to set up the environment:"
-    echo "   ./bootstrap.sh"
+    echo "❌ Error: MaxCLI virtual environment not found"
+    echo "📍 Expected location: $MAXCLI_VENV"
+    echo ""
+    echo "💡 This usually means the bootstrap script didn't complete successfully."
+    echo "   The virtual environment creation may have failed due to:"
+    echo "   • Missing Python 3.8+ installation"
+    echo "   • No admin privileges to install dependencies"
+    echo "   • Network issues during package downloads"
+    echo "   • Insufficient disk space"
+    echo ""
+    
+    # Show basic environment info
+    echo "🔍 Current environment:"
+    if command -v python3 &> /dev/null; then
+        echo "   Python: $(python3 --version 2>/dev/null || echo 'Available but version check failed')"
+    else
+        echo "   Python: ❌ Not found in PATH"
+    fi
+    
+    if command -v brew &> /dev/null; then
+        echo "   Homebrew: ✅ Available"
+    else
+        echo "   Homebrew: ❌ Not available"
+    fi
+    
+    show_troubleshooting
     exit 1
 fi
 
 # Check if questionary is installed in the virtual environment
 if ! "$MAXCLI_PYTHON" -c "import questionary" 2>/dev/null; then
-    echo "⚠️  Warning: questionary not found in maxcli environment"
-    echo "💡 Please run the bootstrap script again to reinstall dependencies:"
-    echo "   ./bootstrap.sh"
+    echo "⚠️  Warning: Dependencies missing in MaxCLI environment"
+    echo "📦 Questionary package not found - MaxCLI may not work properly"
+    echo ""
+    echo "🔧 Quick fix - install dependencies:"
+    echo "   source $MAXCLI_ACTIVATE"
+    echo "   pip install questionary colorama requests pynacl"
+    echo ""
+    echo "💡 Or re-run the bootstrap script to fix all dependencies:"
+    echo "   curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash"
+    echo ""
+    
+    # Still try to run MaxCLI in case some functionality works
+    echo "🚀 Attempting to run MaxCLI anyway..."
 fi
 
 # Set up the Python path for maxcli package
@@ -35,6 +132,25 @@ if maxcli_path not in sys.path:
     sys.path.insert(0, maxcli_path)
 
 # Import and run the CLI
-from maxcli.cli import main
-main()
+try:
+    from maxcli.cli import main
+    main()
+except ImportError as e:
+    print('❌ Error: Failed to import MaxCLI')
+    print(f'📍 Import error: {e}')
+    print('')
+    print('💡 This usually means:')
+    print('   • MaxCLI package not properly installed')
+    print('   • Missing dependencies in virtual environment')
+    print('   • Corrupted installation')
+    print('')
+    print('🔧 To fix this, re-run the bootstrap script:')
+    print('   curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash')
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ Error: MaxCLI crashed: {e}')
+    print('')
+    print('💡 For help with this error, visit:')
+    print('   https://github.com/maximilianls98/maxcli/issues')
+    sys.exit(1)
 " "$@"
