@@ -127,7 +127,7 @@ def handle_backup_config(args) -> None:
     """
     # Create local backup first
     success, backup_file = create_local_backup(args.local_destination)
-    if not success:
+    if not success or backup_file is None:
         sys.exit(1)
     
     # If SSH target specified, upload the backup
