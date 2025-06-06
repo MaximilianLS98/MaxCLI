@@ -48,7 +48,7 @@ def clone_dotfiles():
 def minimal_setup(_args):
     """Minimal terminal and git setup for basic development."""
     install_homebrew()
-    install_brew_packages(["git", "zsh", "wget", "htop"])
+    install_brew_packages(["git", "zsh", "wget", "htop", "stow"])
     install_ohmyzsh()
     setup_git_config()
     print("✅ Minimal setup completed.")
@@ -60,8 +60,13 @@ def dev_full_setup(_args):
     install_homebrew()
     install_brew_packages([
         "git", "node", "nvm", "python", "docker", "kubectl",
-        "awscli", "terraform", "google-cloud-sdk", "tmux"
+        "awscli", "terraform", "google-cloud-sdk", "tmux", "stow"
     ])
+    
+    # Install essential GUI applications for development
+    dev_gui_apps = ["rectangle", "shottr"]
+    install_cask_apps(dev_gui_apps)
+    
     install_ohmyzsh()
     install_pipx_tools()
     setup_git_config()
@@ -79,7 +84,8 @@ def interactive_app_selection():
         ("google-chrome", "Google Chrome - Web browser"),
         ("arc", "Arc Browser - Modern web browser"),
         ("postman", "Postman - API testing tool"),
-        ("docker", "Docker Desktop - Container platform")
+        ("docker", "Docker Desktop - Container platform"),
+        ("orbstack", "OrbStack - Fast, light, simple Docker & Linux on macOS")
     ]
     
     return interactive_checkbox("What would you like to install?", available_apps)
@@ -88,8 +94,17 @@ def apps_setup(args):
     """Install essential GUI applications for development and productivity."""
     install_homebrew()
     
-    # Check if user wants interactive selection
-    if hasattr(args, 'interactive') and args.interactive:
+    # Check if user wants to install all apps without interaction
+    if hasattr(args, 'all') and args.all:
+        # Install all apps without prompting
+        default_apps = [
+            "visual-studio-code", "cursor", "ghostty", "slack", "google-chrome",
+            "arc", "postman", "docker", "orbstack"
+        ]
+        print("📦 Installing all GUI applications...")
+        install_cask_apps(default_apps)
+    else:
+        # Default behavior - interactive selection
         selected_apps = interactive_app_selection()
         
         if not selected_apps:
@@ -98,13 +113,6 @@ def apps_setup(args):
             
         print(f"\n📦 Installing {len(selected_apps)} selected applications...")
         install_cask_apps(selected_apps)
-    else:
-        # Default behavior - install all apps
-        default_apps = [
-            "visual-studio-code", "cursor", "ghostty", "slack", "google-chrome",
-            "arc", "postman", "docker"
-        ]
-        install_cask_apps(default_apps)
     
     print("✅ Apps setup completed.")
 

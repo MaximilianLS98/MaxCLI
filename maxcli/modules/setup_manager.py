@@ -57,7 +57,7 @@ Install and configure basic development tools for terminal usage.
 
 This lightweight setup includes:
 - Homebrew package manager (if not installed)
-- Essential command-line tools: git, zsh, wget, htop
+- Essential command-line tools: git, zsh, wget, htop, stow
 - Oh My Zsh for enhanced terminal experience
 - Basic git configuration setup
 
@@ -84,7 +84,8 @@ This full setup includes everything from 'minimal' plus:
 - Programming languages: Node.js (via nvm), Python
 - Container tools: Docker, kubectl  
 - Cloud tools: AWS CLI, Google Cloud SDK, Terraform
-- Development tools: tmux for terminal multiplexing
+- Development tools: tmux for terminal multiplexing, stow for dotfile management
+- Essential GUI apps: Rectangle (window manager), Shottr (screenshot utility)
 - pipx for Python CLI tool management
 - Dotfiles cloning and configuration
 
@@ -110,29 +111,29 @@ Example:
         description="""
 Install popular GUI applications using Homebrew Cask.
 
-By default, this installs all applications:
-- Development: Visual Studio Code, Cursor AI Editor, Docker Desktop
+By default, this shows an interactive menu to choose which applications to install:
+- Development: Visual Studio Code, Cursor AI Editor, Docker Desktop, OrbStack
 - Communication: Slack  
 - Browsers: Google Chrome, Arc Browser
 - API Testing: Postman
 - Terminal: Ghostty (modern GPU-accelerated terminal)
 
-INTERACTIVE MODE: Use --interactive flag to choose specific applications to install.
-You can select individual apps, install all, or skip installation entirely.
+BATCH MODE: Use --all flag to install all applications without prompting.
+Interactive mode allows you to select individual apps, install all, or skip installation entirely.
 
 All applications are installed via Homebrew Cask, making them easy to manage
 and update. The installation will skip apps that are already installed.
 
 Perfect for:
-- Setting up GUI applications on a new Mac
+- Setting up GUI applications on a new Mac with choice
 - Standardizing application installs across team members
 - Customizing which productivity applications to install
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  max setup apps                 # Install all GUI applications (default)
-  max setup apps --interactive   # Choose specific apps to install
+  max setup apps                 # Interactive app selection (default)
+  max setup apps --all           # Install all GUI applications without prompting
   
 Interactive mode provides:
 - Checkbox selection with Space/Enter (if questionary available)
@@ -140,5 +141,5 @@ Interactive mode provides:
 - Options to install all, none, or specific applications
         """
     )
-    apps_parser.add_argument('--interactive', action='store_true', help='Interactive app selection')
+    apps_parser.add_argument('--all', action='store_true', help='Install all applications without prompting')
     apps_parser.set_defaults(func=apps_setup) 
