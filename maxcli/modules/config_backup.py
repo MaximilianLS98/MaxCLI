@@ -418,13 +418,16 @@ def handle_restore_config(args) -> None:
             
             # Download selected backup
             success, local_file = download_backup_from_ssh(args.target, backup_file, args.local_destination)
-            if not success:
+            if not success or local_file is None:
                 sys.exit(1)
             
         except (ValueError, KeyboardInterrupt):
             print("\n❌ Invalid selection or cancelled")
             sys.exit(1)
     else:
+        if args.backup_file is None:
+            print("❌ Error: --backup-file is required when not using --target")
+            sys.exit(1)
         local_file = args.backup_file
     
     # Check if local config exists
