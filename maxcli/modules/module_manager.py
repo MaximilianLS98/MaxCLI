@@ -21,8 +21,8 @@ MODULES_CONFIG_FILE = CONFIG_DIR / "modules_config.json"
 # Available modules and their metadata
 AVAILABLE_MODULES = {
     "ssh_manager": {
-        "description": "SSH connection and target management with key generation and profiles",
-        "commands": ["ssh", "ssh-key", "ssh-config"]
+        "description": "Complete SSH management: connections, keys, backups, and file transfers with GPG encryption and rsync",
+        "commands": ["ssh"]
     },
     "docker_manager": {
         "description": "Docker container management, image operations, and development environments",
@@ -48,22 +48,14 @@ AVAILABLE_MODULES = {
         "description": "Database backup utilities, CSV data processing, and application deployment tools",
         "commands": ["backup-db", "deploy-app", "process-csv"]
     },
-    "ssh_backup": {
-        "description": "SSH key backup and restore with GPG encryption",
-        "commands": ["ssh-backup"]
-    },
-    "ssh_rsync": {
-        "description": "Remote backup synchronization using rsync over SSH",
-        "commands": ["rsync-backup"]
-    },
-    "config_backup": {
-        "description": "Backup and restore MaxCLI configuration files with local and remote storage options",
-        "commands": ["backup-config"]
+    "config_manager": {
+        "description": "Personal configuration management with init, backup, and restore functionality",
+        "commands": ["config"]
     }
 }
 
 # Default enabled modules (safe defaults)
-DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_backup"]
+DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager"]
 
 
 def ensure_config_directory() -> None:
@@ -265,7 +257,18 @@ def load_and_register_modules(subparsers) -> None:
         print("Use 'max modules enable <module_name>' to enable modules.")
         return
     
+    # Handle legacy module consolidation
+    legacy_ssh_modules_found = []
+    ssh_manager_enabled = False
+    
     for module_name in enabled_modules:
+        # Check for legacy SSH modules that have been consolidated
+        if module_name in ['ssh_backup', 'ssh_rsync']:
+            legacy_ssh_modules_found.append(module_name)
+            continue
+        elif module_name == 'ssh_manager':
+            ssh_manager_enabled = True
+        
         try:
             # Import the module
             module = importlib.import_module(f"maxcli.modules.{module_name}")
@@ -280,6 +283,17 @@ def load_and_register_modules(subparsers) -> None:
             print(f"⚠️  Module {module_name} not found. It may not be implemented yet.")
         except Exception as e:
             print(f"⚠️  Error loading module {module_name}: {e}")
+    
+    # Handle legacy SSH module consolidation
+    if legacy_ssh_modules_found:
+        print(f"📋 Legacy SSH modules detected: {', '.join(legacy_ssh_modules_found)}")
+        if ssh_manager_enabled:
+            print("✅ ssh_manager is enabled and provides all SSH functionality (backup, rsync, etc.)")
+            print("💡 Run 'max modules list' to see current module status")
+        else:
+            print("💡 These modules have been consolidated into 'ssh_manager'")
+            print("🔧 To get SSH functionality, enable ssh_manager: max modules enable ssh_manager")
+            print("🧹 Clean up old modules: max modules disable ssh_backup ssh_rsync")
 
 
 def list_modules() -> None:
@@ -372,6 +386,31 @@ def disable_module(module_name: str) -> bool:
     """
     available = get_available_modules()
     
+    # Handle legacy SSH modules that have been consolidated
+    if module_name in ['ssh_backup', 'ssh_rsync']:
+        config = load_modules_config()
+        enabled_modules = config.get("enabled_modules", [])
+        
+        if module_name in enabled_modules:
+            # Remove from enabled_modules list
+            enabled_modules.remove(module_name)
+            config["enabled_modules"] = enabled_modules
+            
+            # Also update the enabled field in module_info if it exists
+            if "module_info" in config and module_name in config["module_info"]:
+                config["module_info"][module_name]["enabled"] = False
+            
+            if save_modules_config(config):
+                print(f"✅ Legacy module '{module_name}' disabled successfully.")
+                print(f"💡 This functionality is now available in 'ssh_manager' module")
+                return True
+            else:
+                return False
+        else:
+            print(f"✅ Legacy module '{module_name}' is already disabled.")
+            print(f"💡 This functionality is now available in 'ssh_manager' module")
+            return True
+    
     if module_name not in available:
         print(f"❌ Error: Module '{module_name}' is not available.")
         print(f"Available modules: {', '.join(sorted(available))}")
@@ -421,7 +460,13 @@ def handle_enable_module(args) -> None:
 
 def handle_disable_module(args) -> None:
     """Handle the 'modules disable' command."""
-    disable_module(args.module_name)
+    if hasattr(args, 'module_names') and args.module_names:
+        # Handle multiple modules
+        for module_name in args.module_names:
+            disable_module(module_name)
+    else:
+        # Handle single module (legacy compatibility)
+        disable_module(args.module_name)
 
 
 def register_commands(subparsers) -> None:
@@ -507,10 +552,11 @@ Examples:
     # Disable module command
     disable_parser = modules_subparsers.add_parser(
         'disable',
-        help='Disable a module',
+        help='Disable one or more modules',
         description="""
-Disable a specific module to remove its commands from the CLI.
+Disable specific modules to remove their commands from the CLI.
 
+You can disable multiple modules at once by providing multiple names.
 This helps keep the CLI clean by hiding functionality you don't use.
 
 Changes take effect after restarting your CLI session.
@@ -520,7 +566,8 @@ Changes take effect after restarting your CLI session.
 Examples:
   max modules disable docker_manager   # Disable Docker cleanup commands
   max modules disable misc_manager     # Disable miscellaneous commands
+  max modules disable ssh_backup ssh_rsync  # Disable multiple legacy modules
         """
     )
-    disable_parser.add_argument('module_name', help='Name of the module to disable')
+    disable_parser.add_argument('module_names', nargs='+', help='Name(s) of the module(s) to disable')
     disable_parser.set_defaults(func=handle_disable_module) 

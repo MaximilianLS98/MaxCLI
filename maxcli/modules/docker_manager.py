@@ -8,7 +8,7 @@ This module provides Docker system management functionality including:
 """
 
 import argparse
-from maxcli.commands.docker import docker_clean_command, docker_clean, docker_tidy
+from maxcli.commands.docker import docker_clean_command
 
 
 def register_commands(subparsers) -> None:
@@ -90,62 +90,4 @@ Examples:
         help='Perform conservative cleanup (preserves recent items)'
     )
     
-    clean_parser.set_defaults(func=docker_clean_command)
-
-    # Legacy commands for backward compatibility (deprecated)
-    clean_legacy_parser = subparsers.add_parser(
-        'docker-clean', 
-        help='[DEPRECATED] Use "max docker clean --extensive" instead',
-        description="""
-[DEPRECATED] This command is deprecated. Use 'max docker clean --extensive' instead.
-
-Perform a comprehensive Docker system cleanup.
-
-This command runs 'docker system prune -af' which removes:
-- All stopped containers
-- All networks not used by at least one container
-- All dangling images
-- All build cache
-- All unused volumes
-
-WARNING: This will remove ALL unused Docker resources. Make sure you don't need any
-stopped containers or unused images before running this command.
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Example:
-  max docker-clean                # Clean up Docker system (deprecated)
-  max docker clean --extensive    # Recommended alternative
-        """
-    )
-    clean_legacy_parser.set_defaults(func=docker_clean)
-
-    # Legacy tidy command for backward compatibility (deprecated)
-    tidy_legacy_parser = subparsers.add_parser(
-        'docker-tidy', 
-        help='[DEPRECATED] Use "max docker clean --minimal" instead',
-        description="""
-[DEPRECATED] This command is deprecated. Use 'max docker clean --minimal' instead.
-
-Perform a conservative Docker cleanup that only removes truly unused items.
-
-This safer alternative removes:
-- Containers stopped for more than 24 hours
-- Dangling images only (untagged/unreferenced)
-- Unused networks
-- Build cache older than 7 days
-
-This command preserves:
-- All tagged images (even if not currently used)
-- Recently stopped containers (stopped <24h ago)
-- All volumes (never touches data)
-- Recent build cache
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  max docker-tidy                 # Safe Docker cleanup (deprecated)
-  max docker clean --minimal      # Recommended alternative
-        """
-    )
-    tidy_legacy_parser.set_defaults(func=docker_tidy) 
+    clean_parser.set_defaults(func=docker_clean_command) 

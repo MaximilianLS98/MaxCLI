@@ -79,12 +79,4 @@ def docker_clean_command(args) -> None:
         docker_clean_minimal()
 
 
-# Legacy functions for backward compatibility during transition
-def docker_clean(_args):
-    """Legacy function for backward compatibility."""
-    docker_clean_extensive()
-
-
-def docker_tidy(_args):
-    """Legacy function for backward compatibility."""
-    docker_clean_minimal() 
+ 

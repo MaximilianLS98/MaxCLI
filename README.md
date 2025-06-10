@@ -12,17 +12,16 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 
 ## 📦 Available Modules
 
-| Module               | Description                          | Key Commands                                                |
-| -------------------- | ------------------------------------ | ----------------------------------------------------------- |
-| `ssh_manager`        | SSH connection and target management | `ssh list-targets`, `ssh add-target`, `ssh connect`         |
-| `ssh_backup`         | SSH-key backup operations            | `ssh-backup export`, `ssh-backup import`                    |
-| `ssh_rsync`          | SSH backup rsync synchronization     | `ssh-rsync upload-backup`, `ssh-rsync download-backup`      |
-| `coolify_manager`    | Coolify instance management          | `coolify status`, `coolify services`, `coolify apps`        |
-| `gcp_manager`        | Google Cloud Platform utilities      | `gcp config switch`, `gcp config create`, `gcp config list` |
-| `docker_manager`     | Docker system management             | `docker clean --extensive`, `docker clean --minimal`        |
-| `kubernetes_manager` | Kubernetes context switching         | `kctx <context>`                                            |
-| `setup_manager`      | Development environment setup        | `setup minimal`, `setup dev-full`, `setup apps`             |
-| `misc_manager`       | Miscellaneous utilities              | `backup-db`, `deploy-app`                                   |
+| Module               | Description                                                                                 | Key Commands                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `ssh_manager`        | Complete SSH management: connections, keys, backups, and file transfers with GPG encryption | `ssh targets add/list`, `ssh connect`, `ssh generate-keypair`, `ssh backup export/import`, `ssh rsync upload-backup/download-backup` |
+| `docker_manager`     | Docker container management, image operations, and development environments                 | `docker clean --extensive`, `docker clean --minimal`                                                                                 |
+| `kubernetes_manager` | Kubernetes context switching and cluster management                                         | `kctx <context>`, `kubectl`, `k8s`                                                                                                   |
+| `gcp_manager`        | Google Cloud Platform configuration and authentication management                           | `gcp config switch/create/list`, `gcloud`                                                                                            |
+| `coolify_manager`    | Coolify instance management through REST API                                                | `coolify health`, `coolify status`, `coolify services`, `coolify apps`                                                               |
+| `setup_manager`      | Development environment setup and configuration profiles                                    | `setup minimal`, `setup dev-full`, `setup apps`                                                                                      |
+| `misc_manager`       | Database backup utilities, CSV data processing, and application deployment tools            | `backup-db`, `deploy-app`, `process-csv`                                                                                             |
+| `config_manager`     | Personal configuration management with init, backup, and restore functionality              | `config init`, `config backup`, `config restore`                                                                                     |
 
 ## 🛠 Installation
 
@@ -40,7 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstra
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager"
 
 # Installation with all available modules
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager"
 ```
 
 #### Standalone Installation Options
@@ -113,7 +112,7 @@ Here are some common module combinations for different use cases:
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "setup_manager,ssh_manager,docker_manager"
 
 # DevOps Engineer
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,config_manager"
 
 # Full Stack Developer
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager,gcp_manager,misc_manager"
@@ -122,7 +121,7 @@ curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstra
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager"
 
 # Power User (All Modules)
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,ssh_backup,ssh_rsync,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager"
 ```
 
 ### ✅ Post-Installation
@@ -134,7 +133,7 @@ After installation, follow these steps:
 source ~/.zshrc
 
 # 2. Initialize your personal configuration
-max init
+max config init
 
 # 3. Verify installation
 max --help
@@ -178,10 +177,10 @@ max modules enable docker_manager
 
 ### Personal Configuration
 
-Run `max init` to set up your personal configuration:
+Run `max config init` to set up your personal configuration:
 
 ```bash
-max init
+max config init
 ```
 
 This creates `~/.config/maxcli/config.json` with your:
@@ -238,13 +237,12 @@ Output example:
 ==================================================
 ssh_manager        ✅ Enabled
 docker_manager     ✅ Enabled
-coolify_manager    ❌ Disabled
-gcp_manager        ✅ Enabled
 kubernetes_manager ❌ Disabled
+gcp_manager        ✅ Enabled
+coolify_manager    ❌ Disabled
 setup_manager      ✅ Enabled
-ssh_backup         ❌ Disabled
-ssh_rsync          ❌ Disabled
 misc_manager       ❌ Disabled
+config_manager     ✅ Enabled
 ```
 
 ### Enable/Disable Modules
@@ -257,7 +255,7 @@ max modules enable kubernetes_manager
 max modules disable ssh_backup
 
 # Enable multiple modules
-max modules enable ssh_backup ssh_rsync misc_manager
+max modules enable kubernetes_manager gcp_manager misc_manager
 ```
 
 ## 🗑️ Uninstalling MaxCLI
@@ -379,19 +377,29 @@ You will need to reconfigure everything using `max init` and re-enable your pref
 
 ### SSH Manager (`ssh_manager`)
 
-Manage SSH connections and targets efficiently.
+Complete SSH management including connections, key generation, backups, and file transfers.
 
 ```bash
-# Add SSH targets
-max ssh add-target prod ubuntu 192.168.1.100
-max ssh add-target staging deploy 10.0.0.50 --port 2222
-
-# List all targets
-max ssh list-targets
+# Manage SSH targets
+max ssh targets add prod ubuntu 192.168.1.100 --port 2222 --key ~/.ssh/prod_key
+max ssh targets list
+max ssh targets remove old-server
 
 # Connect to targets
 max ssh connect prod
-max ssh connect staging
+max ssh connect                    # Interactive selection
+
+# Generate SSH keypairs
+max ssh generate-keypair dev ~/.ssh/dev_key --type ed25519
+max ssh copy-public-key prod       # Copy public key to target
+
+# SSH key backup and restore with GPG encryption
+max ssh backup export              # Create encrypted backup
+max ssh backup import              # Restore from backup
+
+# File transfers using rsync over SSH
+max ssh rsync upload-backup hetzner    # Upload backup to target
+max ssh rsync download-backup hetzner  # Download backup from target
 ```
 
 ### Docker Manager (`docker_manager`)
@@ -422,6 +430,23 @@ max setup dev-full
 
 # GUI applications
 max setup apps
+```
+
+### Misc Manager (`misc_manager`)
+
+Database backup utilities, CSV data processing, and application deployment tools.
+
+```bash
+# Database backup operations
+max backup-db                     # Backup PostgreSQL database to ~/backups
+
+# Application deployment (placeholder)
+max deploy-app                    # Custom deployment logic
+
+# CSV data processing with Python functions
+max process-csv --csv-file data.csv --function-file analysis.py
+max process-csv --csv-file sales.csv --function-file stats.py --save-as sales_analysis
+max process-csv --list-saved      # List saved processing functions
 ```
 
 ### GCP Manager (`gcp_manager`)
@@ -460,6 +485,24 @@ max coolify services restart my-service
 # Manage applications
 max coolify apps list
 max coolify apps deploy my-app
+```
+
+### Config Manager (`config_manager`)
+
+Personal configuration management with backup and restore capabilities.
+
+```bash
+# Initialize or update personal configuration
+max config init
+max config init --force            # Force reconfiguration
+
+# Backup configuration locally or to remote SSH target
+max config backup                  # Create local backup
+max config backup --target hetzner # Upload to SSH target
+
+# Restore configuration from backup
+max config restore --backup-file ~/backups/maxcli_backup.tar.gz
+max config restore --target hetzner  # Download and restore from SSH target
 ```
 
 ## 🏗 Creating Custom Modules

@@ -42,9 +42,7 @@ OPTIONS:
     --help, -h                  Show this help message
 
 AVAILABLE MODULES:
-    ssh_manager       SSH connection and key management
-    ssh_backup        SSH key backup/restore with GPG encryption (GPG auto-installed)
-    ssh_rsync         SSH-based rsync operations
+    ssh_manager       Complete SSH management: connections, keys, backups, rsync (GPG auto-installed)
     docker_manager    Docker system cleanup and management
     kubernetes_manager Kubernetes context switching
     gcp_manager       Google Cloud Platform configuration
@@ -407,13 +405,13 @@ install_optional_dependencies() {
         echo ""
         echo "🔧 Installing module-specific dependencies..."
         
-        # Check if ssh_backup module is enabled (requires gnupg)
-        if grep -q '"ssh_backup"' ~/.config/maxcli/modules_config.json 2>/dev/null && \
-           grep -A5 '"ssh_backup"' ~/.config/maxcli/modules_config.json | grep -q '"enabled": true'; then
+        # Check if ssh_manager module is enabled (requires gnupg and rsync)
+        if grep -q '"ssh_manager"' ~/.config/maxcli/modules_config.json 2>/dev/null && \
+           grep -A5 '"ssh_manager"' ~/.config/maxcli/modules_config.json | grep -q '"enabled": true'; then
             
             if ! command -v gpg &> /dev/null; then
                 echo ""
-                echo "🔐 Installing GPG (required for ssh_backup module)..."
+                echo "🔐 Installing GPG (required for SSH backup functionality)..."
                 echo "⚠️  Note: GPG installation can take 5-10 minutes due to dependencies"
                 echo "📊 Progress will be shown below - please be patient!"
                 echo ""
@@ -424,11 +422,24 @@ install_optional_dependencies() {
                     echo "✅ GPG installed successfully"
                 else
                     echo "❌ Failed to install GPG"
-                    echo "💡 ssh_backup module may not work without GPG"
+                    echo "💡 SSH backup functionality may not work without GPG"
                     echo "🔧 You can install it manually later with: brew install gnupg"
                 fi
             else
-                echo "✅ GPG already available for ssh_backup module"
+                echo "✅ GPG already available for SSH backup functionality"
+            fi
+            
+            if ! command -v rsync &> /dev/null; then
+                echo "📦 Installing rsync (required for SSH transfer functionality)..."
+                if brew install rsync; then
+                    echo "✅ rsync installed successfully"
+                else
+                    echo "❌ Failed to install rsync"
+                    echo "💡 SSH transfer functionality may not work without rsync"
+                    echo "🔧 You can install it manually later with: brew install rsync"
+                fi
+            else
+                echo "✅ rsync already available for SSH transfer functionality"
             fi
         fi
         
@@ -820,14 +831,13 @@ Note: If running non-interactively (e.g., via curl|bash), defaults will be used.
 
 Available modules:
 
-📱 ssh_manager      - SSH connection management and key handling
-🔐 ssh_backup       - SSH key backup and restore with GPG encryption (GPG auto-installed)
-📁 ssh_rsync        - SSH-based rsync operations and remote backup
+📱 ssh_manager      - Complete SSH management: connections, keys, backups, rsync (GPG auto-installed)
+⚙️  setup_manager    - Development environment setup profiles
+🔧 config_manager   - Personal configuration management with init, backup, and restore
 🐳 docker_manager   - Docker system cleanup and management
 ☸️  kubernetes_manager - Kubernetes context switching
 ☁️  gcp_manager      - Google Cloud Platform configuration management  
 🚀 coolify_manager  - Coolify instance management via API
-⚙️  setup_manager    - Development environment setup profiles
 🔧 misc_manager     - Database backup and deployment utilities
 
 EOF
@@ -884,16 +894,14 @@ EOF
         enabled_modules+=("setup_manager")
     fi
 
-    # SSH-related modules (ask if ssh_manager is enabled)
-    if [[ " ${enabled_modules[*]} " =~ " ssh_manager " ]]; then
-        if ask_yes_no "🔐 Enable ssh_backup (SSH key backup/restore with GPG)" "n"; then
-            echo "💡 Note: This will install GPG (5-10 minutes) when needed"
-            enabled_modules+=("ssh_backup")
-        fi
+    if ask_yes_no "🔧 Enable config_manager (personal configuration management)" "y"; then
+        enabled_modules+=("config_manager")
+    fi
 
-        if ask_yes_no "📁 Enable ssh_rsync (SSH-based rsync operations)" "n"; then
-            enabled_modules+=("ssh_rsync")
-        fi
+    # SSH manager includes all SSH functionality, so no additional SSH modules needed
+    if [[ " ${enabled_modules[*]} " =~ " ssh_manager " ]]; then
+        echo "💡 Note: ssh_manager includes backup/restore with GPG and rsync operations"
+        echo "   GPG will be auto-installed when backup functionality is first used"
     fi
 
     # Optional modules (disabled by default but commonly useful)
@@ -941,21 +949,9 @@ cat > ~/.config/maxcli/modules_config.json << EOF
   "module_info": {
     "ssh_manager": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " ssh_manager " ]]; then echo "true"; else echo "false"; fi),
-      "description": "SSH connection and target management",
+      "description": "Complete SSH management: connections, keys, backups, and file transfers with GPG encryption and rsync",
       "commands": ["ssh"],
-      "dependencies": []
-    },
-    "ssh_backup": {
-      "enabled": $(if [[ " ${enabled_modules[*]} " =~ " ssh_backup " ]]; then echo "true"; else echo "false"; fi),
-      "description": "SSH key backup and restore with GPG encryption",
-      "commands": ["ssh-backup export", "ssh-backup import"],
-      "dependencies": ["gpg"]
-    },
-    "ssh_rsync": {
-      "enabled": $(if [[ " ${enabled_modules[*]} " =~ " ssh_rsync " ]]; then echo "true"; else echo "false"; fi),
-      "description": "SSH-based rsync operations and remote backup",
-      "commands": ["ssh-rsync upload-backup", "ssh-rsync download-backup"],
-      "dependencies": ["rsync"]
+      "dependencies": ["gpg", "rsync"]
     },
     "docker_manager": {
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " docker_manager " ]]; then echo "true"; else echo "false"; fi),
@@ -985,6 +981,12 @@ cat > ~/.config/maxcli/modules_config.json << EOF
       "enabled": $(if [[ " ${enabled_modules[*]} " =~ " setup_manager " ]]; then echo "true"; else echo "false"; fi),
       "description": "Development environment setup and configuration profiles",
       "commands": ["setup"],
+      "dependencies": []
+    },
+    "config_manager": {
+      "enabled": $(if [[ " ${enabled_modules[*]} " =~ " config_manager " ]]; then echo "true"; else echo "false"; fi),
+      "description": "Personal configuration management with init, backup, and restore functionality",
+      "commands": ["config"],
       "dependencies": []
     },
     "misc_manager": {
@@ -1038,7 +1040,7 @@ echo "   └──────────────────────�
 echo ""
 echo "🎯 Next steps:"
 echo "   1. ✅ Restart terminal/reload shell (required!)"
-echo "   2. Initialize personal config: max init"
+echo "   2. Initialize personal config: max config init"
 echo "   3. Explore available commands: max --help"
 echo "   4. See your enabled modules: max modules list"
 echo ""
@@ -1054,25 +1056,22 @@ if [[ ${#enabled_modules[@]} -gt 0 ]]; then
     for module in "${enabled_modules[@]}"; do
         case "$module" in
             "ssh_manager")
-                echo "   max ssh list-targets            # Manage SSH connections"
-                ;;
-            "ssh_backup")
-                echo "   max ssh-backup                  # Backup SSH keys with GPG"
-                ;;
-            "ssh_rsync")
-                echo "   max ssh-rsync-push <target>     # Upload files via rsync"
+                echo "   max ssh targets list            # Manage SSH connections"
+                echo "   max ssh backup export           # Backup SSH keys with GPG"
+                echo "   max ssh rsync upload-backup <target>  # Upload files via rsync"
                 ;;
             "setup_manager")
                 echo "   max setup minimal               # Basic dev environment setup"
                 ;;
+            "config_manager")
+                echo "   max config init                 # Initialize personal configuration"
+                echo "   max config backup               # Backup configuration files"
+                ;;
             "docker_manager")
                 echo "   max docker clean --extensive    # Clean up Docker system"
                 ;;
-            "kubernetes_manager")
-                echo "   max kctx <context>              # Switch Kubernetes context"
-                ;;
             "gcp_manager")
-                echo "   max list-configs                # Show GCP configurations"
+                echo "   max gcp config list             # Show GCP configurations"
                 ;;
             "coolify_manager")
                 echo "   max coolify status              # Check Coolify status"

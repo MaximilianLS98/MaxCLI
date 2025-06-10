@@ -19,7 +19,7 @@ import urllib.error
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 
-from .config import init_config, is_initialized
+from .config import is_initialized
 from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands, load_modules_config
 
 
@@ -671,7 +671,9 @@ Module Management:
   max modules disable <module>    # Disable a module
 
 Core Commands:
-  max init                        # Initialize CLI with your personal configuration
+  max config init                 # Initialize CLI with your personal configuration
+  max config backup               # Backup your MaxCLI configuration
+  max config restore              # Restore configuration from backup
   max update                      # Update MaxCLI to the latest version from GitHub
   max uninstall                   # Completely remove MaxCLI and all configurations
   
@@ -705,35 +707,6 @@ def register_core_commands(subparsers) -> None:
     Args:
         subparsers: ArgumentParser subparsers object to register commands to.
     """
-    # Initialize configuration command
-    init_parser = subparsers.add_parser(
-        'init',
-        help='Initialize or update personal configuration',
-        description="""
-Initialize MaxCLI with your personal configuration settings.
-
-This is a one-time setup (or update) process that collects:
-- Git username and email for repository configuration
-- Dotfiles repository URL (optional)
-- Google Cloud Platform project mappings (optional)
-- Coolify instance URL and API key (optional)
-
-The configuration is saved to ~/.config/maxcli/config.json and used by
-other commands to personalize their behavior.
-
-After initialization, commands like 'max setup dev-full' will use your
-personal git settings and dotfiles repository automatically.
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  max init                        # First-time setup or update existing config
-  max init --force                # Force reconfiguration (skip confirmation)
-        """
-    )
-    init_parser.add_argument('--force', action='store_true', help='Force reconfiguration without confirmation')
-    init_parser.set_defaults(func=init_config)
-
     # Update command
     update_parser = subparsers.add_parser(
         'update',
