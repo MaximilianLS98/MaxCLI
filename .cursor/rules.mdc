@@ -27,7 +27,7 @@ You are working on **MaxCLI**, a modular command-line interface for developers a
 maxcli/
 ├── cli.py              # Main CLI entry point and core commands
 ├── config.py           # Configuration management
-├── commands/           # Command implementations (legacy, being migrated to modules)
+├── commands/           # Command implementations
 ├── modules/            # Modular functionality (preferred location)
 ├── utils/              # Shared utilities and helpers
 └── saved_functions/    # User-saved function snippets

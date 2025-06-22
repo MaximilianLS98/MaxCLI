@@ -443,6 +443,30 @@ install_optional_dependencies() {
             fi
         fi
         
+        # Check if git_manager module is enabled (requires GitPython)
+        if grep -q '"git_manager"' ~/.config/maxcli/modules_config.json 2>/dev/null && \
+           grep -A5 '"git_manager"' ~/.config/maxcli/modules_config.json | grep -q '"enabled": true'; then
+            
+            echo ""
+            echo "🔀 Installing GitPython (required for Git management functionality)..."
+            
+            # Activate virtual environment to install GitPython
+            if source ~/.venvs/maxcli/bin/activate 2>/dev/null; then
+                if pip install GitPython>=3.1.0; then
+                    echo "✅ GitPython installed successfully"
+                else
+                    echo "❌ Failed to install GitPython"
+                    echo "💡 Git management functionality may not work without GitPython"
+                    echo "🔧 You can install it manually later with:"
+                    echo "   source ~/.venvs/maxcli/bin/activate"
+                    echo "   pip install GitPython>=3.1.0"
+                fi
+            else
+                echo "❌ Could not activate MaxCLI virtual environment"
+                echo "💡 GitPython installation skipped - install manually if needed"
+            fi
+        fi
+        
         # Future: Add other module-specific dependencies here
         # if grep -q '"docker_manager"' ~/.config/maxcli/modules_config.json 2>/dev/null; then
         #     # Check for docker installation
@@ -924,6 +948,10 @@ EOF
     if ask_yes_no "🔧 Enable misc_manager (database backup and deployment)" "n"; then
         enabled_modules+=("misc_manager")
     fi
+
+    if ask_yes_no "🔀 Enable git_manager (simplified Git operations with safety checks)" "y"; then
+        enabled_modules+=("git_manager")
+    fi
 fi
 
 # Create the modules configuration file using the new format
@@ -994,6 +1022,12 @@ cat > ~/.config/maxcli/modules_config.json << EOF
       "description": "Database backup utilities, CSV data processing, and application deployment tools",
       "commands": ["backup-db", "deploy-app", "process-csv"],
       "dependencies": ["pg_dump"]
+    },
+    "git_manager": {
+      "enabled": $(if [[ " ${enabled_modules[*]} " =~ " git_manager " ]]; then echo "true"; else echo "false"; fi),
+      "description": "Simplified Git operations with safety checks: WIP commits, branch cleanup, safe force push, and sync workflows",
+      "commands": ["git"],
+      "dependencies": ["GitPython"]
     }
   }
 }
@@ -1078,6 +1112,11 @@ if [[ ${#enabled_modules[@]} -gt 0 ]]; then
                 ;;
             "misc_manager")
                 echo "   max backup-db                   # Backup database"
+                ;;
+            "git_manager")
+                echo "   max git wip                     # Quick WIP commit with timestamp"
+                echo "   max git cleanup-branches        # Delete merged branches and prune remotes"
+                echo "   max git sync                    # Fetch, prune, and rebase on upstream"
                 ;;
         esac
     done

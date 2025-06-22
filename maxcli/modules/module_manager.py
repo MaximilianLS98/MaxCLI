@@ -51,11 +51,16 @@ AVAILABLE_MODULES = {
     "config_manager": {
         "description": "Personal configuration management with init, backup, and restore functionality",
         "commands": ["config"]
+    },
+    "git_manager": {
+        "description": "Simplified Git operations with safety checks: WIP commits, branch cleanup, safe force push, and sync workflows",
+        "commands": ["git"],
+        "dependencies": ["GitPython"]
     }
 }
 
 # Default enabled modules (safe defaults)
-DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager"]
+DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager", "git_manager"]
 
 
 def ensure_config_directory() -> None:
@@ -328,6 +333,77 @@ def list_modules() -> None:
     print("\nUse 'max modules enable <module>' or 'max modules disable <module>' to change status.")
 
 
+def check_and_install_python_dependencies(module_name: str) -> bool:
+    """Check and install Python dependencies for a module.
+    
+    Args:
+        module_name: Name of the module to check dependencies for.
+        
+    Returns:
+        True if dependencies are satisfied, False otherwise.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+    
+    # Define Python dependencies for modules
+    python_dependencies = {
+        "git_manager": ["GitPython>=3.1.0"]
+    }
+    
+    if module_name not in python_dependencies:
+        return True  # No Python dependencies to check
+    
+    deps = python_dependencies[module_name]
+    missing_deps = []
+    
+    # Check which dependencies are missing
+    for dep in deps:
+        dep_name = dep.split(">=")[0].split("==")[0]  # Extract package name
+        try:
+            __import__(dep_name.lower())  # Try to import (GitPython imports as 'git')
+            if dep_name == "GitPython":
+                __import__("git")  # GitPython imports as 'git'
+        except ImportError:
+            missing_deps.append(dep)
+    
+    if not missing_deps:
+        return True  # All dependencies satisfied
+    
+    # Try to install missing dependencies
+    print(f"🔧 Installing Python dependencies for {module_name}...")
+    
+    # Find MaxCLI virtual environment
+    venv_path = Path.home() / ".venvs" / "maxcli"
+    pip_path = venv_path / "bin" / "pip"
+    
+    if not pip_path.exists():
+        print(f"❌ MaxCLI virtual environment not found at {venv_path}")
+        print("💡 Dependencies cannot be automatically installed.")
+        print(f"🔧 Please install manually: pip install {' '.join(missing_deps)}")
+        return False
+    
+    # Install dependencies using MaxCLI's pip
+    for dep in missing_deps:
+        print(f"📦 Installing {dep}...")
+        try:
+            result = subprocess.run(
+                [str(pip_path), "install", dep],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print(f"✅ {dep} installed successfully")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to install {dep}: {e.stderr}")
+            print(f"🔧 You can install it manually with:")
+            print(f"   source ~/.venvs/maxcli/bin/activate")
+            print(f"   pip install {dep}")
+            return False
+    
+    return True
+
+
 def enable_module(module_name: str) -> bool:
     """Enable a module by name.
     
@@ -350,6 +426,12 @@ def enable_module(module_name: str) -> bool:
     if module_name in enabled_modules:
         print(f"✅ Module '{module_name}' is already enabled.")
         return True
+    
+    # Check and install Python dependencies before enabling
+    if not check_and_install_python_dependencies(module_name):
+        print(f"❌ Failed to install dependencies for '{module_name}'. Module not enabled.")
+        print("💡 Please resolve dependency issues and try again.")
+        return False
     
     # Add to enabled_modules list
     enabled_modules.append(module_name)
