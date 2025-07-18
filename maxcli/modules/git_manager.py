@@ -14,7 +14,8 @@ from maxcli.commands.git import (
     git_track_remote_command,
     git_safe_force_command,
     git_sync_command,
-    git_new_branch_command
+    git_new_branch_command,
+    git_rebase_command
 )
 
 
@@ -48,6 +49,7 @@ Examples:
   max git cleanup-branches        # Delete merged branches and prune remotes
   max git sync                    # Fetch, prune, and rebase on upstream
   max git new-branch feature-xyz  # Create branch from latest upstream
+  max git rebase development      # Rebase current branch onto development
   max git safe-force              # Force push with --force-with-lease
         """
     )
@@ -269,4 +271,41 @@ Examples:
         'name',
         help='Name for the new branch'
     )
-    new_branch_parser.set_defaults(func=git_new_branch_command) 
+    new_branch_parser.set_defaults(func=git_new_branch_command)
+    
+    # Git rebase command
+    rebase_parser = git_subparsers.add_parser(
+        'rebase',
+        help='Rebase current branch onto target branch',
+        description="""
+Rebase current branch onto a target branch.
+
+This command:
+• Stashes any uncommitted changes automatically
+• Fetches latest changes from remote
+• Rebases current branch onto the specified target branch
+• Restores stashed changes after rebase
+• Provides detailed feedback throughout the process
+• Handles conflicts gracefully with helpful instructions
+
+Perfect for keeping feature branches up-to-date with development/main.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max git rebase development      # Rebase current branch onto development
+  max git rebase main            # Rebase current branch onto main
+  max git rebase origin/main     # Rebase onto remote main branch
+  max git rebase dev --no-stash  # Rebase without auto-stashing changes
+        """
+    )
+    rebase_parser.add_argument(
+        'target',
+        help='Target branch to rebase onto (e.g., development, main, origin/main)'
+    )
+    rebase_parser.add_argument(
+        '--no-stash',
+        action='store_true',
+        help='Skip automatic stashing of uncommitted changes'
+    )
+    rebase_parser.set_defaults(func=git_rebase_command) 

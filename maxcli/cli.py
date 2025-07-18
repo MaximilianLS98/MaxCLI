@@ -18,9 +18,11 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
+from datetime import datetime
 
 from .config import is_initialized
 from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands, load_modules_config
+from .commands.weekly import weekly_summary_command
 
 
 def get_files_to_remove() -> List[Tuple[Path, str]]:
@@ -838,6 +840,44 @@ def main() -> None:
     
     # Register module management commands (always available)
     register_module_commands(subparsers)
+
+    # Weekly summary command
+    weekly_parser = subparsers.add_parser(
+        'weekly',
+        help='Generate a weekly summary of your commits.',
+        description='This command generates a summary of your commits from the last 7 days and prints it to the console.'
+    )
+    weekly_parser.add_argument(
+        '--save',
+        nargs='?',
+        const=os.path.expanduser(f'~/developer/weekly-standup/weekly_summary_{datetime.now().year}_week{datetime.now().isocalendar()[1]}.md'),
+        default=None,
+        metavar='FILE_PATH',
+        help='Save the summary to a file. If no path is provided, it saves to ~/developer/weekly-standup/weekly_summary_<YEAR>_week<WEEK_NUMBER>.md.'
+    )
+    weekly_parser.add_argument(
+        '--raw',
+        action='store_true',
+        help='Display the raw commit data instead of a summary.'
+    )
+    weekly_parser.add_argument(
+        '--ai',
+        action='store_true',
+        help='Use Gemini CLI to generate an AI-powered summary.'
+    )
+    weekly_parser.add_argument(
+        '--days',
+        type=int,
+        default=7,
+        help='Number of days to look back for commits (default: 7).'
+    )
+    weekly_parser.add_argument(
+        '--limit',
+        type=int,
+        default=100,
+        help='Maximum number of commits to fetch (default: 100).'
+    )
+    weekly_parser.set_defaults(func=weekly_summary_command)
     
     # Load and register enabled modules dynamically
     load_and_register_modules(subparsers)

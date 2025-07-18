@@ -472,4 +472,86 @@ def git_new_branch_command(args, git_manager: GitManager) -> None:
         
     except Exception as e:
         error(f"Failed to create branch: {e}")
+        sys.exit(1)
+
+
+@require_git_repo
+def git_rebase_command(args, git_manager: GitManager) -> None:
+    """Rebase current branch onto target branch."""
+    try:
+        current_branch = git_manager.get_current_branch()
+        if current_branch == "HEAD":
+            error("Cannot rebase in detached HEAD state")
+            return
+        
+        target_branch = args.target
+        
+        # Validate target branch exists
+        try:
+            git_manager.repo.git.rev_parse('--verify', target_branch)
+        except GitError:
+            error(f"Target branch '{target_branch}' does not exist")
+            info("💡 Available local branches:")
+            for branch in git_manager.repo.branches:
+                marker = " (current)" if branch.name == current_branch else ""
+                info(f"   • {branch.name}{marker}")
+            return
+        
+        # Check if we're trying to rebase onto ourselves
+        if target_branch == current_branch:
+            warning(f"Cannot rebase branch '{current_branch}' onto itself")
+            return
+        
+        # Stash changes if any (unless --no-stash is used)
+        stashed = False
+        if not args.no_stash and git_manager.has_changes():
+            git_manager.repo.git.stash('push', '-m', f'Auto-stash for rebase onto {target_branch} - {datetime.now()}')
+            stashed = True
+            info(f"📦 Stashed local changes")
+        
+        try:
+            # Fetch latest changes
+            info(f"🔄 Fetching latest changes...")
+            git_manager.repo.git.fetch('--all', '--prune')
+            success("Fetched latest changes")
+            
+            # Show what we're about to do
+            info(f"🔄 Rebasing {current_branch} onto {target_branch}...")
+            
+            # Perform rebase
+            git_manager.repo.git.rebase(target_branch)
+            success(f"Successfully rebased {current_branch} onto {target_branch}")
+            
+        except GitError as e:
+            error(f"Rebase failed: {e}")
+            error("💡 Rebase conflicts detected!")
+            info("")
+            info("To resolve conflicts:")
+            info("   1. Fix conflicts in the affected files")
+            info("   2. Stage resolved files: git add <file>")
+            info("   3. Continue rebase: git rebase --continue")
+            info("")
+            info("Or to abort the rebase:")
+            info("   git rebase --abort")
+            info("")
+            if stashed:
+                warning("⚠️  You have stashed changes that will need to be restored manually")
+                info("   After resolving the rebase, run: git stash pop")
+            return
+            
+        finally:
+            # Unstash if we stashed and rebase was successful
+            if stashed:
+                try:
+                    git_manager.repo.git.stash('pop')
+                    info(f"📦 Restored stashed changes")
+                except GitError as e:
+                    warning(f"Could not restore stashed changes: {e}")
+                    warning("You may need to manually resolve stash conflicts")
+                    info("💡 Run 'git stash list' to see your stashed changes")
+        
+        success(f"🎉 Rebase completed! {current_branch} is now up-to-date with {target_branch}")
+        
+    except Exception as e:
+        error(f"Rebase failed: {e}")
         sys.exit(1) 

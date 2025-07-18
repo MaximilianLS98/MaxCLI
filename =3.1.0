@@ -1,0 +1,3 @@
+Requirement already satisfied: GitPython in /Users/maximilian/.venvs/maxcli/lib/python3.13/site-packages (3.1.44)
+Requirement already satisfied: gitdb<5,>=4.0.1 in /Users/maximilian/.venvs/maxcli/lib/python3.13/site-packages (from GitPython) (4.0.12)
+Requirement already satisfied: smmap<6,>=3.0.1 in /Users/maximilian/.venvs/maxcli/lib/python3.13/site-packages (from gitdb<5,>=4.0.1->GitPython) (5.0.2)

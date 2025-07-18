@@ -1,1 +1,3 @@
-"""Command modules for MaxCLI.""" 
+"""Command modules for MaxCLI."""
+
+from . import weekly 
