@@ -845,7 +845,39 @@ def main() -> None:
     weekly_parser = subparsers.add_parser(
         'weekly',
         help='Generate a weekly summary of your commits.',
-        description='This command generates a summary of your commits from the last 7 days and prints it to the console.'
+        description="""
+Generate a weekly summary of your commits.
+
+By default, this command uses GitHub CLI to search for commits on the main branch only.
+Use --thorough flag for comprehensive local git repository scanning across all branches.
+
+🔍 Search Methods:
+  Default: Uses 'gh search commits' (GitHub API)
+    • Fast and works across all your GitHub repositories
+    • Only searches main/default branch
+    • Requires GitHub CLI authentication
+    • Limited to commits pushed to GitHub
+
+  --thorough: Uses local git repositories
+    • Scans all branches in local repositories
+    • Finds uncommitted work and feature branches
+    • Works offline (no network required)
+    • Automatic deduplication of merged commits
+    • Searches by your git user.email configuration
+
+💡 The thorough mode is perfect for capturing work that hasn't been merged
+   to main yet or commits that exist only on feature branches.
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  max weekly                              # GitHub search (main branch only)
+  max weekly --thorough                   # Local search all branches (~/developer/urbansharing)
+  max weekly --thorough --path ~/work     # Local search in custom directory
+  max weekly --thorough --days 14         # Look back 14 days with local search
+  max weekly --save --thorough           # Save thorough search to file
+  max weekly --raw --thorough            # Show raw commit data from local search
+        """
     )
     weekly_parser.add_argument(
         '--save',
@@ -875,7 +907,17 @@ def main() -> None:
         '--limit',
         type=int,
         default=100,
-        help='Maximum number of commits to fetch (default: 100).'
+        help='Maximum number of commits to fetch (default: 100). Only used with GitHub search.'
+    )
+    weekly_parser.add_argument(
+        '--thorough',
+        action='store_true',
+        help='Perform thorough local git search across all branches in project directories (instead of GitHub API search).'
+    )
+    weekly_parser.add_argument(
+        '--path',
+        default='~/developer/urbansharing',
+        help='Base path containing git repositories to search (default: ~/developer/urbansharing). Only used with --thorough.'
     )
     weekly_parser.set_defaults(func=weekly_summary_command)
     
