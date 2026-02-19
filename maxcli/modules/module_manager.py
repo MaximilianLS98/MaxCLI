@@ -51,6 +51,10 @@ AVAILABLE_MODULES = {
     "config_manager": {
         "description": "Personal configuration management with init, backup, and restore functionality",
         "commands": ["config"]
+    },
+    "openclaw_manager": {
+        "description": "Manage local OpenClaw instance status, gateway lifecycle, and logs",
+        "commands": ["openclaw"]
     }
 }
 
@@ -150,11 +154,13 @@ def load_modules_config() -> Dict[str, Any]:
         if legacy_flags_found:
             print("🧹 Cleaned up legacy module flags from configuration.")
         
-        # Only update module_info if it's completely missing
-        # This preserves existing configurations for roundtrip compatibility
-        needs_update = False
-        if "module_info" not in config:
-            needs_update = True
+        # Update module_info when missing OR when new modules were added in code.
+        # This preserves existing user settings while ensuring discoverability of new modules.
+        needs_update = "module_info" not in config
+        if not needs_update:
+            configured_modules = set(config.get("module_info", {}).keys())
+            available_modules = set(AVAILABLE_MODULES.keys())
+            needs_update = not available_modules.issubset(configured_modules)
         
         config_modified = False
         if needs_update:

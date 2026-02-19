@@ -22,6 +22,7 @@ MaxCLI is a powerful, modular command-line interface designed for developers and
 | `setup_manager`      | Development environment setup and configuration profiles                                    | `setup minimal`, `setup dev-full`, `setup apps`                                                                                      |
 | `misc_manager`       | Database backup utilities, CSV data processing, and application deployment tools            | `backup-db`, `deploy-app`, `process-csv`                                                                                             |
 | `config_manager`     | Personal configuration management with init, backup, and restore functionality              | `config init`, `config backup`, `config restore`                                                                                     |
+| `openclaw_manager`   | Local OpenClaw service management (status, gateway control, logs)                           | `openclaw status`, `openclaw gateway status/start/stop/restart`, `openclaw logs --lines 100`                                      |
 
 ## 🛠 Installation
 
@@ -39,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstra
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager,docker_manager"
 
 # Installation with all available modules
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager,openclaw_manager"
 ```
 
 #### Standalone Installation Options
@@ -121,7 +122,7 @@ curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstra
 curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,setup_manager"
 
 # Power User (All Modules)
-curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager"
+curl -fsSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash -s -- --modules "ssh_manager,docker_manager,kubernetes_manager,gcp_manager,coolify_manager,setup_manager,misc_manager,config_manager,openclaw_manager"
 ```
 
 ### ✅ Post-Installation

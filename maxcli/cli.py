@@ -683,6 +683,7 @@ Examples of enabled commands (depends on active modules):
   max coolify status              # Check Coolify instance status (coolify_manager)
   max setup minimal               # Basic development environment setup (setup_manager)
   max docker clean --extensive    # Clean up Docker system (docker_manager)
+  max openclaw gateway restart    # Restart local OpenClaw gateway (openclaw_manager)
   max kctx my-k8s-context         # Switch Kubernetes context (kubernetes_manager)
   max gcp config switch altekai   # Switch gcloud config (gcp_manager)
   
