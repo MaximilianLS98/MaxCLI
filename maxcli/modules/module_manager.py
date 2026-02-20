@@ -56,11 +56,15 @@ AVAILABLE_MODULES = {
         "description": "Simplified Git operations with safety checks: WIP commits, branch cleanup, safe force push, and sync workflows",
         "commands": ["git"],
         "dependencies": ["GitPython"]
+    },
+    "devtools_manager": {
+        "description": "Developer utilities: JWT decoding, base64 operations, and other common development tools",
+        "commands": ["decode"]
     }
 }
 
 # Default enabled modules (safe defaults)
-DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager", "git_manager"]
+DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager", "git_manager", "devtools_manager"]
 
 
 def ensure_config_directory() -> None:
