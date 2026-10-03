@@ -1,6 +1,8 @@
 """Docker related commands."""
 import sys
 import subprocess
+import shlex
+from ..runtime import CommandError, prompt_input
 
 
 def docker_clean_extensive() -> None:
@@ -20,14 +22,14 @@ def docker_clean_minimal() -> None:
     
     This is a safer alternative to extensive cleanup that preserves:
     - All images that might be reused
-    - Recent containers (only removes containers stopped >24h ago)
+    - Recent containers (only removes stopped containers created >24h ago)
     - Volumes (never touches volumes)
     """
     print("🧹 Performing minimal Docker cleanup...")
     
     try:
-        # Remove containers that have been stopped for more than 24 hours
-        print("Removing containers stopped >24h ago...")
+        # Remove stopped containers created more than 24 hours ago
+        print("Removing stopped containers created >24h ago...")
         subprocess.run([
             "docker", "container", "prune", "-f", 
             "--filter", "until=24h"
@@ -67,6 +69,18 @@ def docker_clean_command(args) -> None:
     Args:
         args: Parsed command arguments containing cleanup level flags.
     """
+    commands = [['docker', 'system', 'prune', '-af']] if args.extensive else [
+        ['docker', 'container', 'prune', '-f', '--filter', 'until=24h'],
+        ['docker', 'image', 'prune', '-f'], ['docker', 'network', 'prune', '-f'],
+        ['docker', 'builder', 'prune', '-f', '--filter', 'until=168h']]
+    if getattr(args, 'dry_run', False):
+        print('Cleanup commands (no volumes are removed):')
+        for command in commands:
+            print(shlex.join(command))
+        return
+    if not getattr(args, 'yes', False):
+        if prompt_input('Remove unused Docker resources? [y/N]: ').lower() not in ('y', 'yes'):
+            raise CommandError('Docker cleanup cancelled')
     # Determine cleanup level - extensive takes precedence if both are set
     if args.extensive:
         docker_clean_extensive()

@@ -151,7 +151,7 @@ class TestDockerCleanCommand:
     
     def test_extensive_flag_triggers_extensive_cleanup(self, mock_subprocess):
         """Test that --extensive flag triggers extensive cleanup."""
-        args = create_mock_args(extensive=True, minimal=False)
+        args = create_mock_args(yes=True, dry_run=False, extensive=True, minimal=False)
         
         mock_subprocess.return_value.returncode = 0
         
@@ -165,7 +165,7 @@ class TestDockerCleanCommand:
     
     def test_minimal_flag_triggers_minimal_cleanup(self, mock_subprocess):
         """Test that --minimal flag triggers minimal cleanup."""
-        args = create_mock_args(extensive=False, minimal=True)
+        args = create_mock_args(yes=True, dry_run=False, extensive=False, minimal=True)
         
         mock_subprocess.return_value.returncode = 0
         
@@ -176,7 +176,7 @@ class TestDockerCleanCommand:
     
     def test_no_flags_defaults_to_minimal(self, mock_subprocess):
         """Test that no flags defaults to minimal cleanup."""
-        args = create_mock_args(extensive=False, minimal=False)
+        args = create_mock_args(yes=True, dry_run=False, extensive=False, minimal=False)
         
         mock_subprocess.return_value.returncode = 0
         
@@ -188,7 +188,7 @@ class TestDockerCleanCommand:
     
     def test_extensive_flag_priority_over_minimal(self, mock_subprocess):
         """Test that extensive flag takes priority if both are set."""
-        args = create_mock_args(extensive=True, minimal=True)
+        args = create_mock_args(yes=True, dry_run=False, extensive=True, minimal=True)
         
         mock_subprocess.return_value.returncode = 0
         
@@ -238,7 +238,7 @@ class TestLegacyFunctions:
         from maxcli.commands.docker import docker_clean
         
         mock_subprocess.return_value.returncode = 0
-        args = create_mock_args()
+        args = create_mock_args(yes=True, dry_run=False, )
         
         docker_clean(args)
         
@@ -253,7 +253,7 @@ class TestLegacyFunctions:
         from maxcli.commands.docker import docker_tidy
         
         mock_subprocess.return_value.returncode = 0
-        args = create_mock_args()
+        args = create_mock_args(yes=True, dry_run=False, )
         
         docker_tidy(args)
         
@@ -267,7 +267,7 @@ class TestLegacyFunctions:
 ])
 def test_cleanup_command_counts(cleanup_type, expected_command_count, mock_subprocess):
     """Test that different cleanup types call expected number of commands."""
-    args = create_mock_args(
+    args = create_mock_args(yes=True, dry_run=False,
         extensive=(cleanup_type == "extensive"),
         minimal=(cleanup_type == "minimal")
     )

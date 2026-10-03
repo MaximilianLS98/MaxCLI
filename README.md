@@ -78,5 +78,7 @@ modules are enabled by default.
 Tests use temporary configuration. Real installation tests are opt-in because
 they download a GitHub release and Python packages; see the installation guide.
 
+See [configuration safety, encrypted backups, and previews](docs/CONFIGURATION_SAFETY.md).
+
 Additional documentation: [extensions](docs/extending_maxcli.md),
 [Coolify](docs/COOLIFY_README.md), [CSV processing](docs/CSV_PROCESSING_README.md).
