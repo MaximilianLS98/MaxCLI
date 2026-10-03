@@ -109,7 +109,7 @@ def launcher_text(root, channel):
 
 
 def build_environment(destination, source, editable=False, with_dev_tools=False):
-    venv.EnvBuilder(with_pip=True).create(str(destination))
+    venv.EnvBuilder(with_pip=True, symlinks=True).create(str(destination))
     python = str(destination / 'bin/python')
     command = [python, '-I', '-m', 'pip', 'install', '--disable-pip-version-check', '--no-input']
     if editable:
