@@ -39,6 +39,16 @@ max-dev run --project app --dry-run test
 
 See [project configuration and environments](docs/PROJECTS.md).
 
+## Environment diagnostics
+
+```sh
+max-dev doctor
+max-dev doctor --json
+max-dev doctor --network  # optional GitHub/Coolify probes
+```
+
+See [diagnostic checks and exit codes](docs/DOCTOR.md).
+
 ## Configuration and modules
 
 ```sh

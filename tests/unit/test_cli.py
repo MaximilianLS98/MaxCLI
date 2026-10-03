@@ -188,7 +188,7 @@ class TestMainEntryPoint:
 
             # Assert: Should register both core and module commands
             mock_register_modules.assert_called_once()
-            mock_load_modules.assert_called_once()
+            mock_load_modules.assert_not_called()
 
     @patch('maxcli.cli.load_and_register_modules')
     @patch('maxcli.cli.register_module_commands')

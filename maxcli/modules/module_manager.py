@@ -26,38 +26,56 @@ MODULES_CONFIG_FILE = CONFIG_DIR / "modules_config.json"
 # Available modules and their metadata
 AVAILABLE_MODULES = {
     "ssh_manager": {
+        "dependencies": ['ssh', 'ssh-keygen'],
+        "optional_dependencies": ['rsync', 'gpg', 'ssh-copy-id'],
         "description": "Complete SSH management: connections, keys, backups, and file transfers with GPG encryption and rsync",
         "commands": ["ssh"]
     },
     "docker_manager": {
+        "dependencies": ['docker'],
+        "optional_dependencies": [],
         "description": "Docker container management, image operations, and development environments",
         "commands": ["docker"]
     },
     "kubernetes_manager": {
+        "dependencies": ['kubectl'],
+        "optional_dependencies": [],
         "description": "Kubernetes context switching and cluster management",
-        "commands": ["kctx", "kubectl", "k8s"]
+        "commands": ["kctx"]
     },
     "gcp_manager": {
+        "dependencies": ['gcloud'],
+        "optional_dependencies": [],
         "description": "Google Cloud Platform configuration and authentication management",
-        "commands": ["gcp", "gcloud"]
+        "commands": ["gcp"]
     },
     "coolify_manager": {
+        "dependencies": [],
+        "optional_dependencies": [],
         "description": "Coolify instance management through REST API",
         "commands": ["coolify"]
     },
     "setup_manager": {
+        "dependencies": [],
+        "optional_dependencies": ['brew', 'git'],
         "description": "Development environment setup and configuration profiles",
         "commands": ["setup"]
     },
     "misc_manager": {
+        "dependencies": [],
+        "optional_dependencies": [],
         "description": "Database backup utilities, CSV data processing, and application deployment tools",
         "commands": ["backup-db", "deploy-app", "process-csv"]
     },
     "config_manager": {
+        "dependencies": [],
+        "optional_dependencies": ['gpg', 'rsync', 'ssh'],
         "description": "Personal configuration management with init, backup, and restore functionality",
         "commands": ["config"]
     },
     "openclaw_manager": {
+        "dependencies": ['openclaw'],
+        "optional_dependencies": [],
         "description": "Manage local OpenClaw instance status, gateway lifecycle, and logs",
         "commands": ["openclaw"]
     }
@@ -99,7 +117,7 @@ def update_module_info_if_needed(config: Dict[str, Any]) -> bool:
                 "enabled": module_name in enabled_modules,
                 "description": module_data["description"],
                 "commands": module_data["commands"],
-                "dependencies": []  # Default empty dependencies, bootstrap may override
+                "dependencies": module_data.get("dependencies", [])
             }
             modified = True
         else:
@@ -209,7 +227,7 @@ def create_config_with_modules(enabled_modules: List[str]) -> Dict[str, Any]:
             "enabled": module_name in enabled_modules,
             "description": module_data["description"],
             "commands": module_data["commands"],
-            "dependencies": []  # Default empty, can be customized
+            "dependencies": module_data.get("dependencies", [])
         }
     
     return {

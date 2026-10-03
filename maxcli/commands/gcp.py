@@ -1,3 +1,4 @@
+from maxcli.runtime import prompt_input
 """Google Cloud Platform related commands."""
 import os
 import sys
@@ -128,13 +129,13 @@ def setup_quota_project(config_name: str):
     
     if quota_project:
         print(f"Found existing quota project mapping: '{quota_project}'")
-        confirm = input(f"Use '{quota_project}' as quota project? (y/n): ").strip().lower()
+        confirm = prompt_input(f"Use '{quota_project}' as quota project? (y/n): ").strip().lower()
         if confirm not in ['y', 'yes']:
             quota_project = None
     
     if not quota_project:
         print("No existing quota project mapping found.")
-        quota_project = input("Enter quota project ID (or press Enter to skip): ").strip()
+        quota_project = prompt_input("Enter quota project ID (or press Enter to skip): ").strip()
     
     if quota_project:
         try:
@@ -146,7 +147,7 @@ def setup_quota_project(config_name: str):
             print(f"Quota project set to '{quota_project}'.")
             
             if config_name not in quota_project_mappings:
-                save_mapping = input(f"Save mapping '{config_name}' -> '{quota_project}' for future use? (y/n): ").strip().lower()
+                save_mapping = prompt_input(f"Save mapping '{config_name}' -> '{quota_project}' for future use? (y/n): ").strip().lower()
                 if save_mapping in ['y', 'yes']:
                     config = load_config()
                     if 'quota_project_mappings' not in config:

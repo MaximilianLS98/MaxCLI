@@ -92,6 +92,8 @@ def register_core_commands(subparsers) -> None:
     init_parser.set_defaults(func=init_config)
     from .projects import register_commands as register_projects
     register_projects(subparsers)
+    from .doctor import register_commands as register_doctor
+    register_doctor(subparsers)
     from .installation import add_update_arguments, uninstall
     update_parser = subparsers.add_parser('update', help='Update the stable GitHub release or roll back')
     add_update_arguments(update_parser)
@@ -125,7 +127,16 @@ def _main() -> None:
     register_module_commands(subparsers)
     
     # Load and register enabled modules dynamically
-    load_and_register_modules(subparsers)
+    first = next((arg for arg in sys.argv[1:] if arg != '--non-interactive'), None)
+    # Diagnostics must work even when module configuration is corrupt, and help/version
+    # must not initialize or migrate user state.
+    if first not in ('doctor', '--help', '-h', '--version', '-v'):
+        load_and_register_modules(subparsers)
+    elif first in ('--help', '-h'):
+        # Show available commands without loading (and potentially rewriting) user config.
+        from .modules.module_manager import AVAILABLE_MODULES
+        parser.epilog = (parser.epilog or "") + "\nModule commands: " + ', '.join(
+            command for info in AVAILABLE_MODULES.values() for command in info['commands'])
     
     # Enable autocomplete if argcomplete is installed
     try:
@@ -167,6 +178,9 @@ def main() -> None:
     except EOFError:
         print("Input required. Supply explicit arguments or use an interactive terminal.", file=sys.stderr)
         sys.exit(2)
+    except subprocess.TimeoutExpired:
+        print("External command timed out.", file=sys.stderr)
+        sys.exit(1)
     except subprocess.CalledProcessError as exc:
         # Do not print the command: argv can contain credentials.
         print("External command failed (exit {}).".format(exc.returncode), file=sys.stderr)
