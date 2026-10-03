@@ -101,3 +101,29 @@ def test_unmanaged_update_is_actionable(monkeypatch):
     monkeypatch.setattr(inst, 'current_installation', lambda: None)
     with pytest.raises(inst.InstallError, match='unmanaged'):
         inst.update(argparse.Namespace())
+
+
+def test_check_only_cannot_trigger_rollback(channels, monkeypatch):
+    root, binaries = channels
+    info = inst.install(root=root, bin_dir=binaries)
+    active = (root / 'stable').resolve()
+    monkeypatch.setattr(inst, 'current_installation', lambda: info)
+    rollback = Mock()
+    monkeypatch.setattr(inst, 'rollback', rollback)
+    with pytest.raises(inst.InstallError, match='cannot be combined'):
+        inst.update(argparse.Namespace(rollback=True, check_only=True))
+    rollback.assert_not_called()
+    assert (root / 'stable').resolve() == active
+
+
+def test_noninteractive_uninstall_never_prompts(channels, monkeypatch):
+    root, binaries = channels
+    info = inst.install(root=root, bin_dir=binaries)
+    monkeypatch.setattr(inst, 'current_installation', lambda: info)
+    monkeypatch.setattr(inst.sys.stdin, 'isatty', lambda: True)
+    prompt = Mock(side_effect=AssertionError('must not prompt'))
+    monkeypatch.setattr('builtins.input', prompt)
+    with pytest.raises(inst.InstallError, match='cancelled'):
+        inst.uninstall(argparse.Namespace(force=False, dry_run=False, non_interactive=True))
+    prompt.assert_not_called()
+    assert (root / 'stable').exists()

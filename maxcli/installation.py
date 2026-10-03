@@ -235,6 +235,8 @@ def update(args):
     if info['channel'] == 'development':
         raise InstallError('Development uses your live checkout. Edit source directly; rerun bootstrap.sh --dev to refresh dependencies.')
     if getattr(args, 'rollback', False):
+        if getattr(args, 'check_only', False) or getattr(args, 'version', None) or getattr(args, 'show_releases', False):
+            raise InstallError('--rollback cannot be combined with check-only, version, or release-note options')
         rollback(Path(info['root']), 'stable')
         return
     release = release_info(info['repository'], getattr(args, 'version', None))
@@ -257,7 +259,7 @@ def uninstall(args):
     if getattr(args, 'dry_run', False):
         return
     if not getattr(args, 'force', False):
-        if not sys.stdin.isatty() or input('Continue? [y/N]: ').strip().lower() not in ('y', 'yes'):
+        if getattr(args, 'non_interactive', False) or not sys.stdin.isatty() or input('Continue? [y/N]: ').strip().lower() not in ('y', 'yes'):
             raise InstallError('Uninstall cancelled. Use --force for unattended deactivation.')
     with installation_lock(root):
         pointer_target(root, channel)  # Validate ownership before removing a pointer.
