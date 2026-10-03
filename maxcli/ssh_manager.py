@@ -1,3 +1,4 @@
+from maxcli.runtime import prompt_input
 """SSH connection profile manager for MaxCLI.
 
 This module provides functionality to manage SSH connection profiles,
@@ -13,7 +14,9 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 
 
 # Configuration constants
-CONFIG_DIR = Path.home() / ".config" / "maxcli"
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 SSH_TARGETS_FILE = CONFIG_DIR / "ssh_targets.json"
 
 
@@ -38,7 +41,7 @@ def load_ssh_targets() -> Dict[str, Dict[str, Any]]:
             content = json.load(f)
             return content if isinstance(content, dict) else {}
     except (json.JSONDecodeError, IOError) as e:
-        print(f"Warning: Could not load SSH targets file: {e}")
+        print(f"Warning: Could not load SSH targets file: {e}", file=sys.stderr)
         return {}
 
 
@@ -62,7 +65,7 @@ def save_ssh_targets(targets: Dict[str, Dict[str, Any]]) -> bool:
         return True
         
     except (IOError, OSError) as e:
-        print(f"Error: Could not save SSH targets file: {e}")
+        print(f"Error: Could not save SSH targets file: {e}", file=sys.stderr)
         return False
 
 
@@ -152,7 +155,7 @@ def add_target(name: str, user: str, host: str, port: int = 22, key: str = "~/.s
     # Validate inputs
     is_valid, error_msg = validate_ssh_target(user, host, port, key)
     if not is_valid:
-        print(f"Error: {error_msg}")
+        print(f"Error: {error_msg}", file=sys.stderr)
         return False
     
     # Load existing targets
@@ -160,7 +163,7 @@ def add_target(name: str, user: str, host: str, port: int = 22, key: str = "~/.s
     
     # Check if target already exists
     if name in targets:
-        print(f"Error: SSH target '{name}' already exists. Use remove-target first to replace it.")
+        print(f"Error: SSH target '{name}' already exists. Use remove-target first to replace it.", file=sys.stderr)
         return False
     
     # Add new target
@@ -191,7 +194,7 @@ def remove_target(name: str) -> bool:
     targets = load_ssh_targets()
     
     if name not in targets:
-        print(f"Error: SSH target '{name}' not found.")
+        print(f"Error: SSH target '{name}' not found.", file=sys.stderr)
         return False
     
     del targets[name]
@@ -226,7 +229,7 @@ def connect_target(name: Optional[str] = None) -> bool:
     
     # Validate target exists
     if name not in targets:
-        print(f"Error: SSH target '{name}' not found.")
+        print(f"Error: SSH target '{name}' not found.", file=sys.stderr)
         print("Available targets:")
         list_targets()
         return False
@@ -247,7 +250,7 @@ def connect_target(name: Optional[str] = None) -> bool:
         # Execute SSH command (replaces current process)
         os.execvp("ssh", ssh_cmd)
     except OSError as e:
-        print(f"Error: Failed to execute SSH command: {e}")
+        print(f"Error: Failed to execute SSH command: {e}", file=sys.stderr)
         print("Make sure SSH client is installed and in your PATH.")
         return False
     
@@ -278,7 +281,7 @@ def interactive_target_picker(target_names: List[str]) -> Optional[str]:
             print(f"  {i}. {name}")
         
         try:
-            choice = input("\nSelect target (number or name): ").strip()
+            choice = prompt_input("\nSelect target (number or name): ").strip()
             
             # Try as number first
             if choice.isdigit():
@@ -317,7 +320,7 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
     # Check if key already exists
     if key_path_obj.exists():
         try:
-            overwrite = input(f"Key file {key_path_obj} already exists. Overwrite? [y/N]: ").strip().lower()
+            overwrite = prompt_input(f"Key file {key_path_obj} already exists. Overwrite? [y/N]: ").strip().lower()
             if overwrite not in ['y', 'yes']:
                 print("Key generation cancelled.")
                 return False
@@ -350,15 +353,15 @@ def generate_keypair(name: str, key_path: str, key_type: str = "ed25519") -> boo
             
             return True
         else:
-            print(f"Error: Failed to generate SSH keypair:")
+            print(f"Error: Failed to generate SSH keypair:", file=sys.stderr)
             print(result.stderr)
             return False
             
     except FileNotFoundError:
-        print("Error: ssh-keygen command not found. Make sure OpenSSH is installed.")
+        print("Error: ssh-keygen command not found. Make sure OpenSSH is installed.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to execute ssh-keygen: {e}")
+        print(f"Error: Failed to execute ssh-keygen: {e}", file=sys.stderr)
         return False
 
 
@@ -410,12 +413,12 @@ def disable_password_authentication(target: Dict[str, Union[str, int]]) -> bool:
             print("   Make sure you can still connect with your key before closing this session.")
             return True
         else:
-            print(f"❌ Failed to disable password authentication (exit code: {result.returncode})")
+            print(f"❌ Failed to disable password authentication (exit code: {result.returncode})", file=sys.stderr)
             print("   The SSH configuration backup was created but changes may not have been applied.")
             return False
             
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to execute SSH command: {e}")
+        print(f"Error: Failed to execute SSH command: {e}", file=sys.stderr)
         return False
 
 
@@ -434,7 +437,7 @@ def prompt_user_for_password_disable() -> bool:
         print("   Test your key connection first in another terminal if needed.")
         print()
         
-        response = input("Disable password authentication on this server? [y/N]: ").strip().lower()
+        response = prompt_input("Disable password authentication on this server? [y/N]: ").strip().lower()
         return response in ['y', 'yes']
         
     except (KeyboardInterrupt, EOFError):
@@ -454,7 +457,7 @@ def copy_public_key(name: str) -> bool:
     targets = load_ssh_targets()
     
     if name not in targets:
-        print(f"Error: SSH target '{name}' not found.")
+        print(f"Error: SSH target '{name}' not found.", file=sys.stderr)
         return False
     
     target = targets[name]
@@ -463,7 +466,7 @@ def copy_public_key(name: str) -> bool:
     
     # Verify public key exists
     if not public_key_path.exists():
-        print(f"Error: Public key file does not exist: {public_key_path}")
+        print(f"Error: Public key file does not exist: {public_key_path}", file=sys.stderr)
         print(f"Generate a keypair first using: generate-keypair {name} {key_path}")
         return False
     
@@ -492,47 +495,50 @@ def copy_public_key(name: str) -> bool:
             
             return True
         else:
-            print(f"Error: Failed to copy public key (exit code: {result.returncode})")
+            print(f"Error: Failed to copy public key (exit code: {result.returncode})", file=sys.stderr)
             return False
             
     except FileNotFoundError:
-        print("Error: ssh-copy-id command not found. Make sure OpenSSH is installed.")
+        print("Error: ssh-copy-id command not found. Make sure OpenSSH is installed.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to execute ssh-copy-id: {e}")
+        print(f"Error: Failed to execute ssh-copy-id: {e}", file=sys.stderr)
         return False
 
 
 # Convenience functions for CLI integration
 def handle_list_targets(args) -> None:
     """CLI handler for list-targets command."""
-    list_targets()
+    if getattr(args, 'json', False):
+        print(json.dumps(load_ssh_targets()))
+    else:
+        list_targets()
 
 
-def handle_add_target(args) -> None:
+def handle_add_target(args) -> bool:
     """CLI handler for add-target command."""
     port = getattr(args, 'port', 22) or 22
     key = getattr(args, 'key', '~/.ssh/id_rsa') or '~/.ssh/id_rsa'
-    add_target(args.name, args.user, args.host, port, key)
+    return add_target(args.name, args.user, args.host, port, key)
 
 
-def handle_remove_target(args) -> None:
+def handle_remove_target(args) -> bool:
     """CLI handler for remove-target command."""
-    remove_target(args.name)
+    return remove_target(args.name)
 
 
-def handle_connect_target(args) -> None:
+def handle_connect_target(args) -> bool:
     """CLI handler for connect command."""
     name = getattr(args, 'name', None)
-    connect_target(name)
+    return connect_target(name)
 
 
-def handle_generate_keypair(args) -> None:
+def handle_generate_keypair(args) -> bool:
     """CLI handler for generate-keypair command."""
     key_type = getattr(args, 'type', 'ed25519') or 'ed25519'
-    generate_keypair(args.name, args.key_path, key_type)
+    return generate_keypair(args.name, args.key_path, key_type)
 
 
-def handle_copy_public_key(args) -> None:
+def handle_copy_public_key(args) -> bool:
     """CLI handler for copy-public-key command."""
-    copy_public_key(args.name) 
+    return copy_public_key(args.name)

@@ -79,4 +79,12 @@ def docker_clean_command(args) -> None:
         docker_clean_minimal()
 
 
- 
+
+
+# Backwards-compatible Python entry points.
+def docker_clean(args):
+    docker_clean_extensive()
+
+
+def docker_tidy(args):
+    docker_clean_minimal()

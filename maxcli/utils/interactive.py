@@ -1,9 +1,11 @@
+from maxcli.runtime import require_interactive, prompt_input
 """Interactive prompt utilities."""
 import sys
 from typing import Optional, List, Tuple, cast
 
 def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, required: bool = True) -> str:
     """Prompt user for a configuration value with optional current value display."""
+    require_interactive()
     try:
         import questionary
         
@@ -27,7 +29,7 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
         
         if value_result is None:
             if required:
-                print("❌ This field is required. Please provide a value.")
+                print("❌ This field is required. Please provide a value.", file=sys.stderr)
                 return prompt_for_config_value(prompt, current_value, required)
             else:
                 return ""
@@ -35,7 +37,7 @@ def prompt_for_config_value(prompt: str, current_value: Optional[str] = None, re
         value = cast(str, value_result).strip()
         
         if required and not value:
-            print("❌ This field is required. Please provide a value.")
+            print("❌ This field is required. Please provide a value.", file=sys.stderr)
             return prompt_for_config_value(prompt, current_value, required)
         
         return value
@@ -56,7 +58,7 @@ def _prompt_for_config_value_fallback(prompt: str, current_value: Optional[str] 
     
     while True:
         try:
-            value = input(full_prompt).strip()
+            value = prompt_input(full_prompt).strip()
             
             if not value and current_value:
                 return current_value
@@ -65,12 +67,12 @@ def _prompt_for_config_value_fallback(prompt: str, current_value: Optional[str] 
                 return value
             
             if required:
-                print("❌ This field is required. Please provide a value.")
+                print("❌ This field is required. Please provide a value.", file=sys.stderr)
             else:
                 return ""
                 
         except (EOFError, KeyboardInterrupt):
-            print("\n❌ Input cancelled.")
+            print("\n❌ Input cancelled.", file=sys.stderr)
             sys.exit(1)
 
 def interactive_selection(title: str, choices: List[str]) -> Optional[str]:
@@ -78,6 +80,7 @@ def interactive_selection(title: str, choices: List[str]) -> Optional[str]:
     if not choices:
         return None
     
+    require_interactive()
     try:
         import questionary
         
@@ -105,7 +108,7 @@ def _interactive_selection_fallback(title: str, choices: List[str]) -> Optional[
     
     while True:
         try:
-            choice = input(f"\nSelect option (1-{len(choices)}) or 'q' to quit: ").strip()
+            choice = prompt_input(f"\nSelect option (1-{len(choices)}) or 'q' to quit: ").strip()
             
             if choice.lower() == 'q':
                 return None
@@ -114,14 +117,15 @@ def _interactive_selection_fallback(title: str, choices: List[str]) -> Optional[
             if 0 <= index < len(choices):
                 return choices[index]
             else:
-                print(f"❌ Please enter a number between 1 and {len(choices)}")
+                print(f"❌ Please enter a number between 1 and {len(choices)}", file=sys.stderr)
                 
         except (ValueError, KeyboardInterrupt):
-            print("\n❌ Selection cancelled.")
+            print("\n❌ Selection cancelled.", file=sys.stderr)
             return None
 
 def interactive_checkbox(title: str, choices: List[Tuple[str, str]]) -> List[str]:
     """Show interactive checkbox menu for multiple selection."""
+    require_interactive()
     try:
         import questionary
         
@@ -180,7 +184,7 @@ def _interactive_checkbox_fallback(title: str, choices: List[Tuple[str, str]]) -
     
     while True:
         try:
-            choice = input(f"\nSelect option (0=all, 99=none, comma-separated for multiple): ").strip()
+            choice = prompt_input(f"\nSelect option (0=all, 99=none, comma-separated for multiple): ").strip()
             
             if choice == "0":
                 return [name for name, _ in choices]
@@ -193,11 +197,11 @@ def _interactive_checkbox_fallback(title: str, choices: List[Tuple[str, str]]) -
                     if 1 <= index <= len(choices):
                         selected.append(choices[index - 1][0])
                     else:
-                        print(f"❌ Invalid choice: {index}")
+                        print(f"❌ Invalid choice: {index}", file=sys.stderr)
                         break
                 else:
                     return selected
                         
         except (ValueError, KeyboardInterrupt):
-            print("\n❌ Selection cancelled.")
-            return [] 
+            print("\n❌ Selection cancelled.", file=sys.stderr)
+            return []

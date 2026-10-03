@@ -37,14 +37,14 @@ def interactive_config_selection() -> str:
     configs = get_available_configs()
     
     if not configs:
-        print("❌ No configurations with ADC files found.")
+        print("❌ No configurations with ADC files found.", file=sys.stderr)
         print("💡 Create a new configuration with: max gcp config create <name>")
         sys.exit(1)
     
     selected = interactive_selection("Select a gcloud configuration:", configs)
     
     if selected is None:
-        print("\n❌ Configuration switch cancelled.")
+        print("\n❌ Configuration switch cancelled.", file=sys.stderr)
         sys.exit(0)
         
     return selected
@@ -191,4 +191,4 @@ def list_configs(_args):
             print("💡 Consider running 'max gcp config switch' to use a configuration with ADC")
     else:
         print("⚠️  Could not determine active configuration")
-        print("💡 Make sure gcloud is installed and configured") 
+        print("💡 Make sure gcloud is installed and configured")

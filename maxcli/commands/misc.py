@@ -37,7 +37,7 @@ def _check_pandas_availability() -> bool:
         import pandas  # noqa: F401
         return True
     except ImportError:
-        print("❌ Error: pandas is required for CSV processing functionality.")
+        print("❌ Error: pandas is required for CSV processing functionality.", file=sys.stderr)
         print("💡 Please install pandas using one of the following commands:")
         print("   pip install pandas")
         print("   conda install pandas")
@@ -68,7 +68,7 @@ def _validate_csv_file(csv_path: str) -> bool:
     """
     try:
         if not os.path.exists(csv_path):
-            print(f"❌ Error: CSV file not found: {csv_path}")
+            print(f"❌ Error: CSV file not found: {csv_path}", file=sys.stderr)
             return False
         
         # Try to read the first few rows to validate CSV format
@@ -77,7 +77,7 @@ def _validate_csv_file(csv_path: str) -> bool:
         pd.read_csv(csv_path, nrows=1)
         return True
     except Exception as e:
-        print(f"❌ Error: Invalid CSV file: {e}")
+        print(f"❌ Error: Invalid CSV file: {e}", file=sys.stderr)
         return False
 
 
@@ -92,16 +92,16 @@ def _validate_python_file(python_path: str) -> bool:
     """
     try:
         if not os.path.exists(python_path):
-            print(f"❌ Error: Python file not found: {python_path}")
+            print(f"❌ Error: Python file not found: {python_path}", file=sys.stderr)
             return False
         
         if not python_path.endswith('.py'):
-            print(f"❌ Error: File must have .py extension: {python_path}")
+            print(f"❌ Error: File must have .py extension: {python_path}", file=sys.stderr)
             return False
             
         return True
     except Exception as e:
-        print(f"❌ Error: Invalid Python file: {e}")
+        print(f"❌ Error: Invalid Python file: {e}", file=sys.stderr)
         return False
 
 
@@ -120,21 +120,21 @@ def _load_function_from_file(python_path: str) -> Optional[Callable[..., Any]]:
     try:
         spec = importlib.util.spec_from_file_location("user_function", python_path)
         if spec is None or spec.loader is None:
-            print(f"❌ Error: Could not load module from {python_path}")
+            print(f"❌ Error: Could not load module from {python_path}", file=sys.stderr)
             return None
             
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         
         if not hasattr(module, 'process_data'):
-            print("❌ Error: Python file must contain a 'process_data' function")
+            print("❌ Error: Python file must contain a 'process_data' function", file=sys.stderr)
             print("💡 Example function signature: def process_data(df: pd.DataFrame) -> Any:")
             return None
             
         func = getattr(module, 'process_data')
         return func if callable(func) else None
     except Exception as e:
-        print(f"❌ Error loading function from file: {e}")
+        print(f"❌ Error loading function from file: {e}", file=sys.stderr)
         return None
 
 
@@ -156,7 +156,7 @@ def _save_function_file(source_path: str, save_name: str) -> bool:
         print(f"✅ Function saved as: {destination_path}")
         return True
     except Exception as e:
-        print(f"❌ Error saving function: {e}")
+        print(f"❌ Error saving function: {e}", file=sys.stderr)
         return False
 
 
@@ -200,7 +200,7 @@ def process_csv_data(args) -> None:
         
     # Validate required arguments
     if not args.csv_file or not args.function_file:
-        print("❌ Error: Both --csv-file and --function-file are required")
+        print("❌ Error: Both --csv-file and --function-file are required", file=sys.stderr)
         return
         
     # Validate input files
@@ -246,5 +246,5 @@ def process_csv_data(args) -> None:
                 print(f"💾 Function saved for future use with name: {args.save_as}")
                 
     except Exception as e:
-        print(f"❌ Error during processing: {e}")
-        sys.exit(1) 
+        print(f"❌ Error during processing: {e}", file=sys.stderr)
+        sys.exit(1)

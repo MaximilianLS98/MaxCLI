@@ -1,3 +1,4 @@
+from maxcli.runtime import CommandError
 """
 Module management system for MaxCLI.
 
@@ -8,6 +9,7 @@ This module provides functionality to:
 """
 
 import json
+import sys
 import importlib
 import argparse
 from pathlib import Path
@@ -15,7 +17,9 @@ from typing import Dict, List, Optional, Set, Any
 from datetime import datetime, timezone
 
 # Configuration constants
-CONFIG_DIR = Path.home() / ".config" / "maxcli"
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 MODULES_CONFIG_FILE = CONFIG_DIR / "modules_config.json"
 
 # Available modules and their metadata
@@ -136,10 +140,19 @@ def load_modules_config() -> Dict[str, Any]:
     try:
         with open(MODULES_CONFIG_FILE, 'r') as f:
             config: Dict[str, Any] = json.load(f)
+        if not isinstance(config, dict):
+            raise CommandError("Module configuration must be a JSON object: {}".format(MODULES_CONFIG_FILE))
+        if "enabled_modules" in config and (not isinstance(config["enabled_modules"], list)
+                or any(not isinstance(name, str) for name in config["enabled_modules"])):
+            raise CommandError("enabled_modules must be a list of module names")
         
+        if "module_info" in config and (not isinstance(config["module_info"], dict)
+                or any(not isinstance(info, dict) for info in config["module_info"].values())):
+            raise CommandError("module_info must map module names to objects")
+
         # Handle legacy format (boolean flags) - convert to new format
         if "enabled_modules" not in config:
-            print("📦 Converting legacy module configuration to new format...")
+            print("📦 Converting legacy module configuration to new format...", file=sys.stderr)
             legacy_enabled = [name for name, enabled in config.items() 
                             if isinstance(enabled, bool) and enabled and name in AVAILABLE_MODULES]
             return create_config_with_modules(legacy_enabled)
@@ -152,7 +165,7 @@ def load_modules_config() -> Dict[str, Any]:
                 legacy_flags_found = True
         
         if legacy_flags_found:
-            print("🧹 Cleaned up legacy module flags from configuration.")
+            print("🧹 Cleaned up legacy module flags from configuration.", file=sys.stderr)
         
         # Update module_info when missing OR when new modules were added in code.
         # This preserves existing user settings while ensuring discoverability of new modules.
@@ -173,9 +186,7 @@ def load_modules_config() -> Dict[str, Any]:
         return config
         
     except (json.JSONDecodeError, IOError) as e:
-        print(f"Warning: Could not load modules config: {e}")
-        print("Creating default configuration.")
-        return create_default_config()
+        raise CommandError("Cannot read module configuration: {}. Repair the file; it has been preserved.".format(e)) from e
 
 
 def create_default_config() -> Dict[str, Any]:
@@ -225,7 +236,7 @@ def save_modules_config(config: Dict[str, Any]) -> bool:
         return True
         
     except (IOError, OSError) as e:
-        print(f"Error: Could not save modules config: {e}")
+        print(f"Error: Could not save modules config: {e}", file=sys.stderr)
         return False
 
 
@@ -258,9 +269,9 @@ def load_and_register_modules(subparsers) -> None:
     enabled_modules = get_enabled_modules()
     
     if not enabled_modules:
-        print("ℹ️  No modules are currently enabled.")
-        print("Use 'max modules list' to see available modules.")
-        print("Use 'max modules enable <module_name>' to enable modules.")
+        print("ℹ️  No modules are currently enabled.", file=sys.stderr)
+        print("Use 'max modules list' to see available modules.", file=sys.stderr)
+        print("Use 'max modules enable <module_name>' to enable modules.", file=sys.stderr)
         return
     
     # Handle legacy module consolidation
@@ -283,23 +294,23 @@ def load_and_register_modules(subparsers) -> None:
             if hasattr(module, 'register_commands'):
                 module.register_commands(subparsers)
             else:
-                print(f"⚠️  Module {module_name} does not have a register_commands function.")
+                print(f"⚠️  Module {module_name} does not have a register_commands function.", file=sys.stderr)
                 
         except ModuleNotFoundError:
-            print(f"⚠️  Module {module_name} not found. It may not be implemented yet.")
+            print(f"⚠️  Module {module_name} not found. It may not be implemented yet.", file=sys.stderr)
         except Exception as e:
-            print(f"⚠️  Error loading module {module_name}: {e}")
+            print(f"⚠️  Error loading module {module_name}: {e}", file=sys.stderr)
     
     # Handle legacy SSH module consolidation
     if legacy_ssh_modules_found:
-        print(f"📋 Legacy SSH modules detected: {', '.join(legacy_ssh_modules_found)}")
+        print(f"📋 Legacy SSH modules detected: {', '.join(legacy_ssh_modules_found)}", file=sys.stderr)
         if ssh_manager_enabled:
-            print("✅ ssh_manager is enabled and provides all SSH functionality (backup, rsync, etc.)")
-            print("💡 Run 'max modules list' to see current module status")
+            print("✅ ssh_manager is enabled and provides all SSH functionality (backup, rsync, etc.)", file=sys.stderr)
+            print("💡 Run 'max modules list' to see current module status", file=sys.stderr)
         else:
-            print("💡 These modules have been consolidated into 'ssh_manager'")
-            print("🔧 To get SSH functionality, enable ssh_manager: max modules enable ssh_manager")
-            print("🧹 Clean up old modules: max modules disable ssh_backup ssh_rsync")
+            print("💡 These modules have been consolidated into 'ssh_manager'", file=sys.stderr)
+            print("🔧 To get SSH functionality, enable ssh_manager: max modules enable ssh_manager", file=sys.stderr)
+            print("🧹 Clean up old modules: max modules disable ssh_backup ssh_rsync", file=sys.stderr)
 
 
 def list_modules() -> None:
@@ -346,7 +357,7 @@ def enable_module(module_name: str) -> bool:
     available = get_available_modules()
     
     if module_name not in available:
-        print(f"❌ Error: Module '{module_name}' is not available.")
+        print(f"❌ Error: Module '{module_name}' is not available.", file=sys.stderr)
         print(f"Available modules: {', '.join(sorted(available))}")
         return False
     
@@ -418,7 +429,7 @@ def disable_module(module_name: str) -> bool:
             return True
     
     if module_name not in available:
-        print(f"❌ Error: Module '{module_name}' is not available.")
+        print(f"❌ Error: Module '{module_name}' is not available.", file=sys.stderr)
         print(f"Available modules: {', '.join(sorted(available))}")
         return False
     
@@ -456,23 +467,30 @@ def disable_module(module_name: str) -> bool:
 # CLI command handlers
 def handle_list_modules(args) -> None:
     """Handle the 'modules list' command."""
-    list_modules()
-
-
-def handle_enable_module(args) -> None:
-    """Handle the 'modules enable' command."""
-    enable_module(args.module_name)
-
-
-def handle_disable_module(args) -> None:
-    """Handle the 'modules disable' command."""
-    if hasattr(args, 'module_names') and args.module_names:
-        # Handle multiple modules
-        for module_name in args.module_names:
-            disable_module(module_name)
+    if getattr(args, 'json', False):
+        enabled = set(get_enabled_modules())
+        print(json.dumps([{ "name": name, "enabled": name in enabled, **info}
+                          for name, info in sorted(AVAILABLE_MODULES.items())]))
     else:
-        # Handle single module (legacy compatibility)
-        disable_module(args.module_name)
+        list_modules()
+
+
+def handle_enable_module(args) -> bool:
+    """Handle the 'modules enable' command."""
+    names = getattr(args, 'module_names', None) or [args.module_name]
+    unknown = set(names) - get_available_modules()
+    if unknown:
+        print("Unknown modules: " + ", ".join(sorted(unknown)), file=sys.stderr)
+        return False
+    results = [enable_module(name) for name in names]
+    return all(results)
+
+
+def handle_disable_module(args) -> bool:
+    """Disable named modules and propagate failures."""
+    names = getattr(args, 'module_names', None) or [args.module_name]
+    results = [disable_module(name) for name in names]
+    return all(results)
 
 
 def register_commands(subparsers) -> None:
@@ -531,6 +549,7 @@ Example:
   max modules list                # Show detailed module status
         """
     )
+    list_parser.add_argument('--json', action='store_true', help='Output structured JSON')
     list_parser.set_defaults(func=handle_list_modules)
     
     # Enable module command
@@ -552,7 +571,7 @@ Examples:
   max modules enable coolify_manager   # Enable Coolify management
         """
     )
-    enable_parser.add_argument('module_name', help='Name of the module to enable')
+    enable_parser.add_argument('module_names', nargs='+', help='Name of the module to enable')
     enable_parser.set_defaults(func=handle_enable_module)
     
     # Disable module command
@@ -576,4 +595,4 @@ Examples:
         """
     )
     disable_parser.add_argument('module_names', nargs='+', help='Name(s) of the module(s) to disable')
-    disable_parser.set_defaults(func=handle_disable_module) 
+    disable_parser.set_defaults(func=handle_disable_module)

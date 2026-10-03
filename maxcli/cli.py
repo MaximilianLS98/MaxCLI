@@ -19,7 +19,8 @@ import urllib.error
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 
-from .config import is_initialized
+from .config import is_initialized, init_config
+from .runtime import CommandError, NON_INTERACTIVE, prompt_input
 from .modules.module_manager import load_and_register_modules, register_commands as register_module_commands, load_modules_config
 
 
@@ -154,17 +155,17 @@ def confirm_uninstall(force: bool) -> bool:
     
     # First confirmation
     print("\n" + "="*60)
-    response = input("⚡ Are you absolutely sure you want to uninstall MaxCLI? (type 'yes' to confirm): ").strip()
+    response = prompt_input("⚡ Are you absolutely sure you want to uninstall MaxCLI? (type 'yes' to confirm): ").strip()
     if response.lower() != 'yes':
-        print("❌ Uninstall cancelled.")
+        print("❌ Uninstall cancelled.", file=sys.stderr)
         return False
     
     # Second confirmation (double confirmation)
     print("\n🔥 FINAL WARNING: This action is IRREVERSIBLE!")
     print("📝 You will need to re-run the bootstrap script to reinstall MaxCLI.")
-    response = input("🗑️  Type 'DELETE EVERYTHING' to proceed with uninstallation: ").strip()
+    response = prompt_input("🗑️  Type 'DELETE EVERYTHING' to proceed with uninstallation: ").strip()
     if response != 'DELETE EVERYTHING':
-        print("❌ Uninstall cancelled. Correct phrase not entered.")
+        print("❌ Uninstall cancelled. Correct phrase not entered.", file=sys.stderr)
         return False
     
     return True
@@ -203,7 +204,7 @@ def uninstall_maxcli(args) -> None:
                 else:
                     print(f"   ⚠️  Skipped (not found): {description}")
             except (OSError, IOError) as e:
-                print(f"   ❌ Failed to remove {description}: {e}")
+                print(f"   ❌ Failed to remove {description}: {e}", file=sys.stderr)
     
     # Remove shell configuration modifications
     print("\n🔧 Checking shell configuration files...")
@@ -484,7 +485,7 @@ def ensure_git_repository() -> bool:
     maxcli_install_path = Path.home() / ".local" / "lib" / "python" / "maxcli"
     
     if not maxcli_install_path.exists():
-        print("❌ MaxCLI installation directory not found")
+        print("❌ MaxCLI installation directory not found", file=sys.stderr)
         return False
     
     git_dir = maxcli_install_path / ".git"
@@ -517,7 +518,7 @@ def ensure_git_repository() -> bool:
             return True
             
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-            print(f"   ❌ Failed to initialize git repository: {e}")
+            print(f"   ❌ Failed to initialize git repository: {e}", file=sys.stderr)
             return False
     
     return True
@@ -557,7 +558,7 @@ def update_maxcli(args) -> None:
     
     # Ensure we have a git repository
     if not ensure_git_repository():
-        print("\n❌ Cannot proceed without git repository setup")
+        print("\n❌ Cannot proceed without git repository setup", file=sys.stderr)
         print("💡 Consider reinstalling MaxCLI using the bootstrap script")
         return
     
@@ -645,7 +646,7 @@ def update_maxcli(args) -> None:
         print("\n💡 Update complete! All changes are immediately available.")
         
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-        print(f"\n❌ Update failed: {e}")
+        print(f"\n❌ Update failed: {e}", file=sys.stderr)
         print("💡 Try running the bootstrap script to reinstall:")
         print("   curl -sSL https://raw.githubusercontent.com/maximilianls98/maxcli/main/bootstrap.sh | bash")
 
@@ -699,6 +700,7 @@ Use 'max modules list' to see available functionality.
         help='Show MaxCLI version information and check for updates'
     )
     
+    parser.add_argument('--non-interactive', action='store_true', help='Never prompt; fail when input is required')
     return parser
 
 
@@ -708,6 +710,9 @@ def register_core_commands(subparsers) -> None:
     Args:
         subparsers: ArgumentParser subparsers object to register commands to.
     """
+    init_parser = subparsers.add_parser('init', help='Initialize personal configuration (alias for config init)')
+    init_parser.add_argument('--force', action='store_true')
+    init_parser.set_defaults(func=init_config)
     # Update command
     update_parser = subparsers.add_parser(
         'update',
@@ -818,7 +823,7 @@ After uninstall, to reinstall MaxCLI:
     uninstall_parser.set_defaults(func=uninstall_maxcli)
 
 
-def main() -> None:
+def _main() -> None:
     """Main CLI entry point with dynamic module loading."""
     # Create the main parser
     parser = create_parser()
@@ -860,6 +865,33 @@ def main() -> None:
     
     # Execute the appropriate function
     if hasattr(args, 'func'):
-        args.func(args)
+        token = NON_INTERACTIVE.set(args.non_interactive or not sys.stdin.isatty())
+        try:
+            result = args.func(args)
+            if result is False:
+                raise CommandError("Command failed. See diagnostics above.")
+            if type(result) is int and result != 0:
+                sys.exit(result)
+        finally:
+            NON_INTERACTIVE.reset(token)
     else:
-        parser.print_help() 
+        parser.print_help()
+
+
+def main() -> None:
+    """CLI boundary: actionable errors and predictable failure statuses."""
+    try:
+        _main()
+    except KeyboardInterrupt:
+        print("Cancelled.", file=sys.stderr)
+        sys.exit(130)
+    except EOFError:
+        print("Input required. Supply explicit arguments or use an interactive terminal.", file=sys.stderr)
+        sys.exit(2)
+    except subprocess.CalledProcessError as exc:
+        # Do not print the command: argv can contain credentials.
+        print("External command failed (exit {}).".format(exc.returncode), file=sys.stderr)
+        sys.exit(exc.returncode if exc.returncode > 0 else 1)
+    except (CommandError, OSError, ValueError) as exc:
+        print("Error: {}".format(exc), file=sys.stderr)
+        sys.exit(1)

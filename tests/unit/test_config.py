@@ -84,7 +84,7 @@ class TestConfigLoading:
             # Should return empty dict and print warning
             assert result == {}
             captured = capsys.readouterr()
-            assert "⚠️ Warning: Could not load config file" in captured.out
+            assert "⚠️ Warning: Could not load config file" in captured.err
     
     @patch('maxcli.config.CONFIG_FILE')
     def test_load_config_permission_error(self, mock_config_file, capsys):
@@ -97,7 +97,7 @@ class TestConfigLoading:
             # Should return empty dict and print warning
             assert result == {}
             captured = capsys.readouterr()
-            assert "⚠️ Warning: Could not load config file" in captured.out
+            assert "⚠️ Warning: Could not load config file" in captured.err
 
 
 class TestConfigSaving:
@@ -133,7 +133,7 @@ class TestConfigSaving:
                 # Should return False and print error message
                 assert result is False
                 captured = capsys.readouterr()
-                assert "❌ Error saving config" in captured.out
+                assert "❌ Error saving config" in captured.err
 
 
 class TestInitializationChecks:
@@ -280,7 +280,7 @@ class TestConfigIntegration:
                 assert result == {}
                 
                 captured = capsys.readouterr()
-                assert "⚠️ Warning: Could not load config file" in captured.out
+                assert "⚠️ Warning: Could not load config file" in captured.err
         
         # Test save with permission error
         with patch('maxcli.config.ensure_config_dir'):
@@ -289,4 +289,4 @@ class TestConfigIntegration:
                 assert result is False
                 
                 captured = capsys.readouterr()
-                assert "❌ Error saving config" in captured.out 
+                assert "❌ Error saving config" in captured.err
