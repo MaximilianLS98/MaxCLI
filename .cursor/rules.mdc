@@ -279,6 +279,9 @@ from ..utils.helpers import validate_input, format_output
 - Check for security vulnerabilities
 
 ### Git Workflow
+- Follow `AGENTS.md`: every change requires a committed release-note entry in `release-notes/`.
+- Run `python3 scripts/release_notes.py check --base origin/main` before completing a PR (use its actual target branch).
+- Use an `internal` entry with a rationale for changes without user-facing impact; never modify merged entries.
 - Use descriptive commit messages following conventional commits
 - Include tests for new functionality
 - Update documentation for user-facing changes

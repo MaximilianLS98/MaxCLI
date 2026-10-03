@@ -682,6 +682,10 @@ MIT License - see LICENSE file for details.
 
 ## 🤝 Contributing
 
+Every PR must include a release-note entry. Agents must follow [AGENTS.md](AGENTS.md).
+See the [entry format](release-notes/README.md) and [GitHub release guide](docs/RELEASING.md)
+for authoring, validation, and automatic release assembly.
+
 1. Fork the repository
 2. Create a feature branch
 3. Add your module or improvements
