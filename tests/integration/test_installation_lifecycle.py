@@ -26,8 +26,10 @@ def test_released_stable_and_live_checkout_coexist(tmp_path):
     installer = checkout / 'maxcli/installation.py'
     common = ['--root', str(root), '--bin-dir', str(binaries)]
     def execute(command):
-        return subprocess.run(command, env=environment, cwd=checkout, text=True,
-                              capture_output=True, timeout=600, check=True).stdout
+        result = subprocess.run(command, env=environment, cwd=checkout, text=True,
+                                capture_output=True, timeout=600)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return result.stdout
     execute([sys.executable, str(installer), *common, '--version', 'v1.0.0'])
     stable = (root / 'stable').resolve()
     execute([sys.executable, str(installer), *common, '--dev', str(checkout)])

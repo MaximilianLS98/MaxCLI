@@ -69,7 +69,11 @@ def release_info(repository=REPOSITORY, version=None):
         raise InstallError('Repository must be OWNER/REPO')
     suffix = 'tags/' + urllib.parse.quote(version, safe='') if version else 'latest'
     url = 'https://api.github.com/repos/{}/releases/{}'.format(repository, suffix)
-    request = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'MaxCLI-installer'})
+    headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'MaxCLI-installer'}
+    token = os.environ.get('MAXCLI_GITHUB_TOKEN') or os.environ.get('GITHUB_TOKEN')
+    if token:
+        headers['Authorization'] = 'Bearer ' + token
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             release = json.load(response)
@@ -188,7 +192,9 @@ def current_installation():
         data = json.loads(path.read_text())
     except (ValueError, OSError) as exc:
         raise InstallError('Cannot read installation metadata: {}'.format(exc)) from exc
-    if not isinstance(data, dict) or data.get('channel') not in ('stable', 'development'):
+    if (not isinstance(data, dict) or data.get('channel') not in ('stable', 'development')
+            or any(not isinstance(data.get(key), str) or not data[key]
+                   for key in ('root', 'bin_dir', 'repository', 'source', 'version'))):
         raise InstallError('Invalid installation metadata')
     return data
 

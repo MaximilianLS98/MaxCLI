@@ -19,3 +19,4 @@ jobs:
       - run: bash test_bootstrap.sh -q
         env:
           MAXCLI_RUN_INSTALL_TESTS: '1'
+          GITHUB_TOKEN: ${{ github.token }}
