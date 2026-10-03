@@ -1,168 +1,21 @@
-name: Test Bootstrap Script
-
-# Trigger on pushes to main and all pull requests
+name: Install lifecycle
 on:
-    push:
-        branches: [main]
-        paths:
-            - 'bootstrap.sh'
-            - 'test_bootstrap.sh'
-            - 'bootstrap_fix_test.sh'
-            - '.github/workflows/test-bootstrap.yml'
-    pull_request:
-        branches: [main]
-        paths:
-            - 'bootstrap.sh'
-            - 'test_bootstrap.sh'
-            - 'bootstrap_fix_test.sh'
-            - '.github/workflows/test-bootstrap.yml'
-    # Allow manual workflow runs
-    workflow_dispatch:
-
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
 jobs:
-    test-bootstrap:
-        name: Test Bootstrap Script Security & Functionality
-        runs-on: ubuntu-latest
-
-        steps:
-            - name: Checkout Repository
-              uses: actions/checkout@v4
-
-            - name: Set Up Test Environment
-              run: |
-                  # Ensure scripts are executable
-                  chmod +x bootstrap.sh
-                  chmod +x test_bootstrap.sh
-                  chmod +x bootstrap_fix_test.sh
-
-                  # Install required tools for testing
-                  sudo apt-get update
-                  sudo apt-get install -y curl wget
-
-            - name: Run Bootstrap Race Condition Fix Tests
-              id: test_bootstrap_fixes
-              run: |
-                  echo "🔧 Running bootstrap race condition fix validation tests..."
-                  ./bootstrap_fix_test.sh
-
-            - name: Run Comprehensive Bootstrap Tests
-              id: test_bootstrap
-              run: |
-                  echo "🧪 Running comprehensive bootstrap script tests with full isolation..."
-                  ./test_bootstrap.sh --ci
-
-            - name: Validate Script Syntax
-              run: |
-                  echo "🔍 Validating script syntax..."
-
-                  # Check bash syntax
-                  bash -n bootstrap.sh
-                  bash -n test_bootstrap.sh
-                  bash -n bootstrap_fix_test.sh
-
-                  echo "✅ Script syntax is valid"
-
-            - name: Performance Test
-              run: |
-                  echo "⚡ Testing script performance..."
-
-                  # Help command should be very fast (under 2 seconds)
-                  start_time=$(date +%s)
-                  ./bootstrap.sh --help > /dev/null 2>&1
-                  end_time=$(date +%s)
-                  duration=$((end_time - start_time))
-
-                  if [[ $duration -gt 2 ]]; then
-                    echo "::warning::⚠️ Help command took ${duration}s (slower than expected)"
-                  else
-                    echo "✅ Help command performance good (${duration}s)"
-                  fi
-
-            - name: Generate Test Report
-              if: always()
-              run: |
-                  echo "📊 Test Summary"
-                  echo "==============="
-                  echo "✅ Bootstrap race condition fixes validated"
-                  echo "✅ Comprehensive test suite completed"
-                  echo "✅ All tests run in complete isolation"
-                  echo "✅ User settings protection verified"
-                  echo "✅ Critical security fixes verified"
-                  echo "✅ All functionality tested"
-                  echo "✅ Script syntax valid"
-                  echo "✅ Performance acceptable"
-                  echo ""
-                  echo "🎉 Bootstrap script is ready for production!"
-
-            # Upload test artifacts on failure (updated to v4)
-            - name: Upload Test Artifacts
-              if: failure()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: test-failure-logs
-                  path: |
-                      /tmp/maxcli_test_*
-                  retention-days: 7
-
-    # Test on macOS to ensure cross-platform compatibility
-    test-macos:
-        name: Test on macOS
-        runs-on: macos-latest
-
-        steps:
-            - name: Checkout Repository
-              uses: actions/checkout@v4
-
-            - name: Set Up Test Environment
-              run: |
-                  chmod +x bootstrap.sh
-                  chmod +x test_bootstrap.sh
-                  chmod +x bootstrap_fix_test.sh
-
-            - name: Run Bootstrap Race Condition Fix Tests on macOS
-              run: |
-                  echo "🍎 Running bootstrap fix tests on macOS..."
-                  ./bootstrap_fix_test.sh
-
-            - name: Run Comprehensive Tests on macOS
-              run: |
-                  echo "🍎 Running comprehensive tests on macOS with isolation..."
-                  ./test_bootstrap.sh --ci
-
-    # Test different scenarios using our comprehensive test suite
-    test-scenarios:
-        name: Test Different Usage Scenarios
-        runs-on: ubuntu-latest
-
-        strategy:
-            matrix:
-                test-mode:
-                    - 'verbose'
-                    - 'ci'
-
-        steps:
-            - name: Checkout Repository
-              uses: actions/checkout@v4
-
-            - name: Set Up Environment
-              run: |
-                  chmod +x bootstrap.sh
-                  chmod +x test_bootstrap.sh
-                  chmod +x bootstrap_fix_test.sh
-
-            - name: Run Bootstrap Fix Tests
-              run: |
-                  echo "🔧 Running bootstrap fix validation tests..."
-                  ./bootstrap_fix_test.sh
-
-            - name: Run Tests in Verbose Mode
-              if: matrix.test-mode == 'verbose'
-              run: |
-                  echo "🔍 Running tests in verbose mode..."
-                  ./test_bootstrap.sh --verbose
-
-            - name: Run Tests in CI Mode
-              if: matrix.test-mode == 'ci'
-              run: |
-                  echo "🤖 Running tests in CI mode..."
-                  ./test_bootstrap.sh --ci
+  installation:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[test]'
+      - run: bash test_bootstrap.sh -q
+        env:
+          MAXCLI_RUN_INSTALL_TESTS: '1'
