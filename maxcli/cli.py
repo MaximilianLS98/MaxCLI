@@ -713,6 +713,8 @@ def register_core_commands(subparsers) -> None:
     init_parser = subparsers.add_parser('init', help='Initialize personal configuration (alias for config init)')
     init_parser.add_argument('--force', action='store_true')
     init_parser.set_defaults(func=init_config)
+    from .projects import register_commands as register_projects
+    register_projects(subparsers)
     # Update command
     update_parser = subparsers.add_parser(
         'update',
