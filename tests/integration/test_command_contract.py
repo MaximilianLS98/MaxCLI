@@ -64,3 +64,32 @@ def test_setup_initialization_calls_existing_function(monkeypatch):
     monkeypatch.setattr(config, 'init_config', lambda args: called.append(args.force))
     config.check_initialization()
     assert called == [False]
+
+
+def test_doctor_handles_corrupt_module_config(cli_run, tmp_path):
+    root = tmp_path / 'config'
+    root.mkdir()
+    (root / 'modules_config.json').write_text('{broken')
+    result = cli_run('doctor', '--json')
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert report['ok'] is False
+    assert (root / 'modules_config.json').read_text() == '{broken'
+
+
+def test_doctor_and_help_do_not_create_configuration(cli_run, tmp_path):
+    report = json.loads(cli_run('doctor', '--json').stdout)
+    assert report['network_checked'] is False
+    assert not (tmp_path / 'config').exists()
+    assert cli_run('--help').returncode == 0
+    assert not (tmp_path / 'config').exists()
+
+
+def test_cleanup_preview_without_docker(cli_run):
+    cli_run('modules', 'enable', 'docker_manager')
+    preview = cli_run('docker', 'clean', '--extensive', '--dry-run')
+    assert preview.returncode == 0
+    assert 'docker system prune -af' in preview.stdout
+    denied = cli_run('--non-interactive', 'docker', 'clean', '--extensive')
+    assert denied.returncode == 1
+    assert 'requires input' in denied.stderr
