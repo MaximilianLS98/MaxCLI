@@ -20,21 +20,21 @@ max-dev --version
 
 `max-dev` loads source changes on its next invocation. It has a separate virtual
 environment and `~/.config/maxcli-dev` configuration. `max` stays on the installed
-GitHub release, even when invoked inside the checkout. New features in this
-branch are available through `max-dev` until they are published in a release.
+GitHub release, even when invoked inside the checkout. Both commands support
+the workflows below; use `max-dev` to try your local changes.
 
 See [installation, updates, rollback, and migration](docs/INSTALLATION.md).
 
 ## Projects and tasks
 
 ```sh
-max-dev project add app ~/developer/app --tag personal --editor 'code --wait'
-max-dev project list --tag personal
-max-dev project open app
+max project add app ~/developer/app --tag personal --editor 'code --wait'
+max project list --tag personal
+max project open app
 # In a project, create .maxcli.json and define argument-array tasks:
-max-dev project init
-max-dev run dev
-max-dev run --project app --dry-run test
+max project init
+max run dev
+max run --project app --dry-run test
 ```
 
 See [project configuration and environments](docs/PROJECTS.md).
@@ -42,9 +42,9 @@ See [project configuration and environments](docs/PROJECTS.md).
 ## Environment diagnostics
 
 ```sh
-max-dev doctor
-max-dev doctor --json
-max-dev doctor --network  # optional GitHub/Coolify probes
+max doctor
+max doctor --json
+max doctor --network  # optional GitHub/Coolify probes
 ```
 
 See [diagnostic checks and exit codes](docs/DOCTOR.md).

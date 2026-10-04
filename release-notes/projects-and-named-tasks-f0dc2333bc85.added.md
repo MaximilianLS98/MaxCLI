@@ -1,0 +1,1 @@
+Register, tag, find, and open projects with `max project`. Define explicit argument-array tasks and environment associations in `.maxcli.json`, then execute them with `max run`, including project selection, forwarded arguments, and dry-run previews.

@@ -1,0 +1,1 @@
+Restore `max init`, propagate command failures and interruption status, preserve malformed module configuration for repair, and support `--non-interactive` execution. Module and SSH target lists support JSON; module enabling accepts multiple names. Configuration consistently respects `MAXCLI_CONFIG_DIR` and XDG locations.

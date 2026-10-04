@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "maxcli"
-version = "1.0.0"
+version = "2.0.0"
 description = "Max's Personal CLI - A modular collection of useful development and operations commands"
 readme = "README.md"
 license = {text = "MIT"}
