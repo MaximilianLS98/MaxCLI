@@ -1,12 +1,12 @@
 """System utility functions."""
 import subprocess
 import shutil
-from typing import List
+from typing import List, Union
 
-def run(cmd: str, check: bool = True) -> subprocess.CompletedProcess:
+def run(cmd: Union[str, List[str]], check: bool = True) -> subprocess.CompletedProcess:
     """Run a command with logging."""
     print(f"🔧 Running: {cmd}")
-    return subprocess.run(cmd, shell=True, check=check)
+    return subprocess.run(cmd, shell=isinstance(cmd, str), check=check)
 
 def is_installed(binary_name: str) -> bool:
     """Check if a binary is installed and available in PATH."""

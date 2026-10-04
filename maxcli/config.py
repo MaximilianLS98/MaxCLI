@@ -1,11 +1,14 @@
 from maxcli.runtime import prompt_input
 """Configuration management for MaxCLI."""
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from .utils.interactive import prompt_for_config_value
+from .secrets import redact, prompt_secret
+from .storage import write_object
 
 # Configuration constants
 from maxcli.paths import config_dir
@@ -16,6 +19,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 def ensure_config_dir() -> None:
     """Ensure the config directory exists."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)
 
 def load_config() -> Dict[str, Any]:
     """Load configuration from file, return empty dict if file doesn't exist."""
@@ -31,10 +35,9 @@ def load_config() -> Dict[str, Any]:
 
 def save_config(config: Dict[str, Any]) -> bool:
     """Save configuration to file."""
-    ensure_config_dir()
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
+        ensure_config_dir()
+        write_object(CONFIG_FILE, config)
         return True
     except IOError as e:
         print(f"❌ Error saving config: {e}", file=sys.stderr)
@@ -48,6 +51,9 @@ def is_initialized() -> bool:
 
 def get_config_value(key: str, default: Any = None) -> Any:
     """Get a configuration value."""
+    overrides = {'coolify_api_key': 'MAXCLI_COOLIFY_API_KEY', 'coolify_instance_url': 'MAXCLI_COOLIFY_URL'}
+    if key in overrides and os.environ.get(overrides[key]):
+        return os.environ[overrides[key]]
     config = load_config()
     return config.get(key, default)
 
@@ -89,7 +95,7 @@ def init_config(args):
         print("✅ Configuration already exists!")
         print(f"📁 Config location: {CONFIG_FILE}")
         print("\nCurrent configuration:")
-        for key, value in config.items():
+        for key, value in redact(config).items():
             print(f"  {key}: {value}")
         
         update = prompt_input("\nDo you want to update your configuration? (y/n): ").lower().startswith('y')
@@ -123,12 +129,8 @@ def init_config(args):
     # Coolify API key (optional)
     print("\nCoolify API key (optional):")
     print("This will be used for managing Coolify resources.")
-    config['coolify_api_key'] = prompt_for_config_value(
-        "Coolify API key (leave empty to skip)",
-        config.get('coolify_api_key'),
-        required=False
-    )
-    
+    config['coolify_api_key'] = prompt_secret("Coolify API key", config.get('coolify_api_key'))
+
     config['coolify_instance_url'] = prompt_for_config_value(
         "Coolify instance URL (e.g., https://coolify.example.com, leave empty to skip)",
         config.get('coolify_instance_url'),

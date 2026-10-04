@@ -2,7 +2,10 @@
 import json
 import sys
 from typing import Dict, List, Optional, Any, Tuple
-import subprocess
+import urllib.request
+import urllib.error
+import urllib.parse
+from ..runtime import CommandError
 from ..config import get_config_value
 
 def get_coolify_config() -> Tuple[Optional[str], Optional[str]]:
@@ -20,82 +23,41 @@ def get_coolify_config() -> Tuple[Optional[str], Optional[str]]:
     
     return api_key, instance_url
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward a bearer token through an HTTP redirect."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def make_coolify_request(endpoint: str, method: str = 'GET', data: Optional[Dict] = None, expect_json: bool = True) -> Optional[Any]:
-    """Make a request to the Coolify API using curl."""
     api_key, instance_url = get_coolify_config()
     if not api_key or not instance_url:
         return None
-    
-    # Ensure endpoint starts with /api/v1
+    parsed = urllib.parse.urlsplit(instance_url)
+    if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
+        raise CommandError('Coolify URL must be an HTTP(S) URL without embedded credentials')
     if not endpoint.startswith('/api/v1'):
-        if endpoint.startswith('/'):
-            endpoint = f"/api/v1{endpoint}"
-        else:
-            endpoint = f"/api/v1/{endpoint}"
-    
-    url = f"{instance_url}{endpoint}"
-    
-    # Build curl command
-    curl_cmd = [
-        'curl', '-s', '-X', method,
-        '-H', f'Authorization: Bearer {api_key}',
-        '-H', 'Content-Type: application/json',
-        '-H', 'Accept: application/json'
-    ]
-    
-    # Add data for POST/PATCH requests
-    if data and method in ['POST', 'PATCH']:
-        curl_cmd.extend(['-d', json.dumps(data)])
-    
-    curl_cmd.append(url)
-    
+        endpoint = '/api/v1/' + endpoint.lstrip('/')
+    request = urllib.request.Request(instance_url + endpoint, method=method,
+        data=json.dumps(data).encode() if data is not None else None,
+        headers={'Authorization': 'Bearer ' + api_key, 'Content-Type': 'application/json', 'Accept': 'application/json'})
     try:
-        result = subprocess.run(curl_cmd, capture_output=True, text=True, check=True)
-        if result.stdout:
-            # Check if response looks like HTML (authentication redirect)
-            if result.stdout.strip().startswith('<!DOCTYPE html>') or result.stdout.strip().startswith('<html'):
-                print("❌ Authentication failed - received HTML redirect instead of JSON", file=sys.stderr)
-                print("💡 This usually means:")
-                print("   • Your API key is invalid or expired")
-                print("   • Your API key doesn't have sufficient permissions")
-                print("   • The Coolify instance URL is incorrect")
-                print("💡 Run 'max init' to update your Coolify credentials")
-                return None
-            
-            # If we don't expect JSON, return the raw text
-            if not expect_json:
-                return result.stdout.strip()
-            
-            try:
-                json_response = json.loads(result.stdout)
-                
-                # Check for permission errors
-                if isinstance(json_response, dict) and 'message' in json_response:
-                    message = json_response['message']
-                    if 'permission' in message.lower() or 'unauthorized' in message.lower():
-                        print(f"❌ Permission denied: {message}", file=sys.stderr)
-                        print("💡 Your API key may not have the required permissions for this operation")
-                        print("💡 Check your API key permissions in the Coolify dashboard")
-                        return None
-                    elif 'not found' in message.lower():
-                        print(f"❌ Endpoint not found: {message}", file=sys.stderr)
-                        print("💡 This endpoint may not be available in your Coolify version")
-                        return None
-                
-                return json_response
-            except json.JSONDecodeError:
-                print(f"❌ Invalid JSON response from Coolify API", file=sys.stderr)
-                print(f"Response preview: {result.stdout[:200]}...")
-                return None
-        return {} if expect_json else ""
-    except subprocess.CalledProcessError as e:
-        print(f"❌ API request failed: {e}", file=sys.stderr)
-        if e.stderr:
-            print(f"Error: {e.stderr}", file=sys.stderr)
+        with urllib.request.build_opener(NoRedirect()).open(request, timeout=20) as response:
+            body = response.read(8 * 1024 * 1024 + 1)
+            if len(body) > 8 * 1024 * 1024:
+                raise CommandError('Coolify response exceeds 8 MiB')
+            text = body.decode('utf-8')
+        if text.lstrip().startswith('<'):
+            raise CommandError('Coolify returned HTML; check the instance URL and credentials')
+        return (json.loads(text) if text.strip() else {}) if expect_json else text.strip()
+    except urllib.error.HTTPError as exc:
+        print('Coolify HTTP error {}. Check URL, credentials, and permissions.'.format(exc.code), file=sys.stderr)
         return None
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}", file=sys.stderr)
+    except (OSError, ValueError):
+        # Response bodies and request headers can contain secrets; do not echo them.
+        print('Coolify request failed or returned invalid data.', file=sys.stderr)
         return None
+
 
 def format_status(status: str) -> str:
     """Format status with appropriate emoji and color."""
@@ -412,9 +374,10 @@ def coolify_status(args) -> None:
         ('databases', '🗄️  Databases')
     ]
     
+    failed = False
     for endpoint, label in resource_types:
         response = make_coolify_request(f'/{endpoint}')
-        if response and isinstance(response, list):
+        if isinstance(response, list):
             resources = response
             count = len(resources)
             
@@ -431,8 +394,10 @@ def coolify_status(args) -> None:
                     print(f"   🟡 Other states: {other}")
             print()
         else:
-            print(f"{label}: Unable to fetch")
-            print()
+            failed = True
+            print(f"{label}: Unable to fetch", file=sys.stderr)
+    if failed:
+        raise CommandError("Some Coolify resources could not be fetched")
 
 def coolify_start_application(args) -> None:
     """Start an application by UUID."""

@@ -1,3 +1,4 @@
+from maxcli.storage import write_object
 from maxcli.runtime import prompt_input
 """SSH connection profile manager for MaxCLI.
 
@@ -57,8 +58,7 @@ def save_ssh_targets(targets: Dict[str, Dict[str, Any]]) -> bool:
     try:
         ensure_config_directory()
         
-        with open(SSH_TARGETS_FILE, 'w') as f:
-            json.dump(targets, f, indent=2)
+        write_object(SSH_TARGETS_FILE, targets)
         
         # Set file permissions to 600 (read/write for owner only)
         os.chmod(SSH_TARGETS_FILE, 0o600)

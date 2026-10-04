@@ -72,6 +72,7 @@ Example:
   max setup minimal              # Install basic development tools
         """
     )
+    minimal_parser.add_argument('--dry-run', action='store_true', help='Preview setup without changes')
     minimal_parser.set_defaults(func=minimal_setup)
 
     dev_full_parser = setup_subparsers.add_parser(
@@ -103,6 +104,7 @@ Example:
   max setup dev-full             # Install complete development environment
         """
     )
+    dev_full_parser.add_argument('--dry-run', action='store_true', help='Preview setup without changes')
     dev_full_parser.set_defaults(func=dev_full_setup)
 
     apps_parser = setup_subparsers.add_parser(
@@ -142,4 +144,5 @@ Interactive mode provides:
         """
     )
     apps_parser.add_argument('--all', action='store_true', help='Install all applications without prompting')
+    apps_parser.add_argument('--dry-run', action='store_true', help='Preview setup without changes')
     apps_parser.set_defaults(func=apps_setup) 

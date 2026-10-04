@@ -1,3 +1,4 @@
+from maxcli.storage import write_object
 from maxcli.runtime import CommandError
 """
 Module management system for MaxCLI.
@@ -69,6 +70,7 @@ DEFAULT_ENABLED_MODULES = ["ssh_manager", "setup_manager", "config_manager"]
 def ensure_config_directory() -> None:
     """Ensure the maxcli config directory exists with proper permissions."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)
 
 
 def update_module_info_if_needed(config: Dict[str, Any]) -> bool:
@@ -230,8 +232,7 @@ def save_modules_config(config: Dict[str, Any]) -> bool:
     try:
         ensure_config_directory()
         
-        with open(MODULES_CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2, sort_keys=True)
+        write_object(MODULES_CONFIG_FILE, config)
         
         return True
         
