@@ -57,18 +57,14 @@ class TestModuleConfigLoading:
                           if not info["enabled"]]
         assert len(disabled_modules) > 0
     
-    def test_handle_corrupted_config_file(self, isolated_module_manager: Dict[str, Any]):
-        """Test handling of corrupted JSON configuration file."""
-        # Write invalid JSON
-        modules_config_file = isolated_module_manager["modules_config_file"]
-        with open(modules_config_file, 'w') as f:
-            f.write("{ invalid json")
+    def test_handle_corrupted_config_file(self, isolated_module_manager):
+        from maxcli.runtime import CommandError
+        path = isolated_module_manager['modules_config_file']
+        path.write_text('{broken')
+        with pytest.raises(CommandError, match='preserved'):
+            load_modules_config()
+        assert path.read_text() == '{broken'
         
-        config = load_modules_config()
-        
-        # Should fall back to default config
-        validate_module_config_structure(config)
-        assert "ssh_manager" in config["enabled_modules"]
     
     def test_legacy_config_conversion(self, isolated_module_manager: Dict[str, Any]):
         """Test conversion from legacy boolean flag format to new format."""
@@ -309,4 +305,4 @@ def test_module_existence_validation(module_name, should_exist, isolated_module_
     
     available_modules = get_available_modules()
     
-    assert (module_name in available_modules) == should_exist 
+    assert (module_name in available_modules) == should_exist

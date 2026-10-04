@@ -96,6 +96,7 @@ Examples:
         description="Choose a target management operation",
         metavar="<operation>"
     )
+    targets_parser.add_argument('--json', action='store_true', help='Output structured JSON')
     targets_parser.set_defaults(func=handle_list_targets)
 
     # List targets command
@@ -114,6 +115,7 @@ Example:
   max ssh targets list            # Show all SSH targets
         """
     )
+    list_parser.add_argument('--json', action='store_true', help='Output structured JSON')
     list_parser.set_defaults(func=handle_list_targets)
 
     # Add target command
@@ -434,4 +436,4 @@ Examples:
         """
     )
     download_parser.add_argument('target', help='SSH target name to download backup from')
-    download_parser.set_defaults(func=handle_rsync_download_backup) 
+    download_parser.set_defaults(func=handle_rsync_download_backup)

@@ -84,7 +84,7 @@ class TestConfigLoading:
             # Should return empty dict and print warning
             assert result == {}
             captured = capsys.readouterr()
-            assert "⚠️ Warning: Could not load config file" in captured.out
+            assert "⚠️ Warning: Could not load config file" in captured.err
     
     @patch('maxcli.config.CONFIG_FILE')
     def test_load_config_permission_error(self, mock_config_file, capsys):
@@ -97,43 +97,29 @@ class TestConfigLoading:
             # Should return empty dict and print warning
             assert result == {}
             captured = capsys.readouterr()
-            assert "⚠️ Warning: Could not load config file" in captured.out
+            assert "⚠️ Warning: Could not load config file" in captured.err
 
 
 class TestConfigSaving:
-    """Test configuration file saving functionality."""
-    
-    def test_save_config_success(self):
-        """Test saving configuration successfully."""
-        test_config = {"user": "test_user", "setting": "value"}
-        
-        with patch('maxcli.config.ensure_config_dir') as mock_ensure_dir:
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = save_config(test_config)
-                
-                assert result is True
-                mock_ensure_dir.assert_called_once()
-                mock_file.assert_called_once_with(CONFIG_FILE, 'w')
-    
-    def test_save_config_empty_dict(self):
-        """Test saving empty configuration."""
-        with patch('maxcli.config.ensure_config_dir'):
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = save_config({})
-                
-                assert result is True
-                mock_file.assert_called_once_with(CONFIG_FILE, 'w')
-    
-    def test_save_config_permission_error(self, capsys):
-        """Test saving configuration with permission error."""
-        with patch('maxcli.config.ensure_config_dir'):
-            with patch('builtins.open', side_effect=PermissionError("Permission denied")):
-                result = save_config({"test": "value"})
-                
-                # Should return False and print error message
-                assert result is False
-                captured = capsys.readouterr()
-                assert "❌ Error saving config" in captured.out
+    def test_atomic_config_roundtrip(self, tmp_path, monkeypatch):
+        from maxcli import config
+        monkeypatch.setattr(config, 'CONFIG_DIR', tmp_path / 'config')
+        monkeypatch.setattr(config, 'CONFIG_FILE', tmp_path / 'config/config.json')
+        assert config.save_config({'coolify_api_key': 'test-secret'})
+        assert config.load_config()['coolify_api_key'] == 'test-secret'
+        assert config.CONFIG_FILE.stat().st_mode & 0o777 == 0o600
+        assert config.CONFIG_DIR.stat().st_mode & 0o777 == 0o700
+
+    def test_write_failure_preserves_existing_config(self, tmp_path, monkeypatch):
+        from maxcli import config, storage
+        monkeypatch.setattr(config, 'CONFIG_DIR', tmp_path)
+        monkeypatch.setattr(config, 'CONFIG_FILE', tmp_path / 'config.json')
+        assert config.save_config({'name': 'old'})
+        def fail(*args):
+            raise OSError('simulated disk error')
+        monkeypatch.setattr(storage.os, 'replace', fail)
+        assert not config.save_config({'name': 'new'})
+        assert config.load_config() == {'name': 'old'}
 
 
 class TestInitializationChecks:
@@ -239,54 +225,20 @@ class TestConfigConstants:
 
 
 class TestConfigIntegration:
-    """Integration tests for configuration functionality."""
-    
-    @patch('maxcli.config.CONFIG_FILE')
-    def test_save_and_load_workflow(self, mock_config_file):
-        """Test basic save and load workflow."""
-        test_config = {
-            "git_name": "Test User",
-            "git_email": "test@example.com",
-            "coolify_api_key": "test-key"
-        }
-        
-        # Test saving
-        with patch('maxcli.config.ensure_config_dir'):
-            with patch('builtins.open', mock_open()) as mock_file:
-                result = save_config(test_config)
-                assert result is True
-        
-        # Test loading  
-        mock_config_file.exists.return_value = True
-        with patch('builtins.open', mock_open(read_data=json.dumps(test_config))):
-            loaded_config = load_config()
-            assert loaded_config == test_config
-        
-        # Test config value retrieval
-        with patch('maxcli.config.load_config', return_value=test_config):
-            git_name = get_config_value("git_name")
-            assert git_name == "Test User"
-            
-            # Test initialization check
-            assert is_initialized() is True
-    
-    def test_error_handling_workflow(self, capsys):
-        """Test error handling in configuration workflow."""
-        # Test load with invalid JSON
-        with patch('maxcli.config.CONFIG_FILE') as mock_config_file:
-            mock_config_file.exists.return_value = True
-            with patch('builtins.open', mock_open(read_data="invalid json")):
-                result = load_config()
-                assert result == {}
-                
-                captured = capsys.readouterr()
-                assert "⚠️ Warning: Could not load config file" in captured.out
-        
-        # Test save with permission error
-        with patch('maxcli.config.ensure_config_dir'):
-            with patch('builtins.open', side_effect=PermissionError("Permission denied")):
-                result = save_config({"test": "value"})
-                assert result is False
-                
-                captured = capsys.readouterr()
-                assert "❌ Error saving config" in captured.out 
+    def test_save_and_load_workflow(self, tmp_path, monkeypatch):
+        from maxcli import config
+        monkeypatch.setattr(config, 'CONFIG_DIR', tmp_path)
+        monkeypatch.setattr(config, 'CONFIG_FILE', tmp_path / 'config.json')
+        values = {'git_name': 'Tester', 'git_email': 'test@example.invalid'}
+        assert config.save_config(values)
+        assert config.is_initialized()
+        assert config.load_config() == values
+
+    def test_error_handling_workflow(self, tmp_path, monkeypatch):
+        from maxcli import config
+        monkeypatch.setattr(config, 'CONFIG_DIR', tmp_path)
+        monkeypatch.setattr(config, 'CONFIG_FILE', tmp_path / 'config.json')
+        def fail(*args):
+            raise PermissionError('denied')
+        monkeypatch.setattr(config, 'write_object', fail)
+        assert not config.save_config({'test': 'value'})

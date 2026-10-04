@@ -57,10 +57,10 @@ Cleanup Levels:
   - All networks not used by at least one container  
   - All dangling images
   - All build cache
-  - All unused volumes
+  - Volumes are preserved
   
 • --minimal: Conservative cleanup that preserves recent/useful items
-  - Containers stopped for more than 24 hours
+  - Stopped containers created more than 24 hours ago
   - Dangling images only (untagged/unreferenced)
   - Unused networks
   - Build cache older than 7 days
@@ -90,4 +90,6 @@ Examples:
         help='Perform conservative cleanup (preserves recent items)'
     )
     
+    clean_parser.add_argument('--dry-run', action='store_true', help='Print cleanup commands without executing')
+    clean_parser.add_argument('--yes', action='store_true', help='Approve cleanup without prompting')
     clean_parser.set_defaults(func=docker_clean_command) 

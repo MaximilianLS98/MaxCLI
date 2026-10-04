@@ -1,3 +1,4 @@
+import sys
 """SSH backup file transfer functionality using rsync over SSH.
 
 This module provides secure file transfer capabilities for SSH backup files,
@@ -15,7 +16,9 @@ from .ssh_manager import load_ssh_targets as _load_ssh_targets
 
 
 # Configuration constants
-CONFIG_DIR = Path.home() / ".config" / "maxcli"
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 SSH_TARGETS_FILE = CONFIG_DIR / "ssh_targets.json"
 BACKUP_FILENAME = "ssh_keys_backup.tar.gz.gpg"
 LOCAL_BACKUP_PATH = Path.home() / BACKUP_FILENAME
@@ -37,7 +40,7 @@ def load_ssh_targets() -> Dict[str, Dict[str, Any]]:
             content = json.load(f)
             return content if isinstance(content, dict) else {}
     except (json.JSONDecodeError, IOError) as e:
-        print(f"Warning: Could not load SSH targets file: {e}")
+        print(f"Warning: Could not load SSH targets file: {e}", file=sys.stderr)
         return {}
 
 
@@ -53,11 +56,11 @@ def get_ssh_target(target_name: str) -> Optional[Dict[str, Any]]:
     targets = load_ssh_targets()
     
     if not targets:
-        print("Error: No SSH targets configured. Use 'max ssh add-target' to create one first.")
+        print("Error: No SSH targets configured. Use 'max ssh add-target' to create one first.", file=sys.stderr)
         return None
     
     if target_name not in targets:
-        print(f"Error: SSH target '{target_name}' not found.")
+        print(f"Error: SSH target '{target_name}' not found.", file=sys.stderr)
         print("\nAvailable targets:")
         for name in sorted(targets.keys()):
             target = targets[name]
@@ -96,14 +99,14 @@ def create_remote_backup_directory(target: Dict) -> bool:
         if result.returncode == 0:
             return True
         else:
-            print(f"Warning: Could not create remote backup directory: {result.stderr.strip()}")
+            print(f"Warning: Could not create remote backup directory: {result.stderr.strip()}", file=sys.stderr)
             return False
             
     except subprocess.TimeoutExpired:
-        print("Error: SSH connection timed out while creating backup directory")
+        print("Error: SSH connection timed out while creating backup directory", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to create remote backup directory: {e}")
+        print(f"Error: Failed to create remote backup directory: {e}", file=sys.stderr)
         return False
 
 
@@ -125,7 +128,7 @@ def rsync_upload_backup(target_name: str) -> bool:
     
     # Check if local backup file exists
     if not LOCAL_BACKUP_PATH.exists():
-        print(f"Error: Local backup file not found: {LOCAL_BACKUP_PATH}")
+        print(f"Error: Local backup file not found: {LOCAL_BACKUP_PATH}", file=sys.stderr)
         print("Create a backup first using: max ssh export-keys")
         return False
     
@@ -163,17 +166,17 @@ def rsync_upload_backup(target_name: str) -> bool:
             print(f"📍 Remote location: {REMOTE_BACKUP_PATH}")
             return True
         else:
-            print(f"❌ Upload failed with exit code: {result.returncode}")
+            print(f"❌ Upload failed with exit code: {result.returncode}", file=sys.stderr)
             return False
             
     except subprocess.TimeoutExpired:
-        print("❌ Upload timed out (5 minute limit exceeded)")
+        print("❌ Upload timed out (5 minute limit exceeded)", file=sys.stderr)
         return False
     except FileNotFoundError:
-        print("❌ Error: rsync command not found. Please install rsync.")
+        print("❌ Error: rsync command not found. Please install rsync.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"❌ Upload failed: {e}")
+        print(f"❌ Upload failed: {e}", file=sys.stderr)
         return False
 
 
@@ -206,7 +209,7 @@ def check_remote_backup_exists(target: Dict) -> bool:
         return result.returncode == 0
         
     except subprocess.TimeoutExpired:
-        print("Warning: SSH connection timed out while checking remote file")
+        print("Warning: SSH connection timed out while checking remote file", file=sys.stderr)
         return False
     except subprocess.SubprocessError:
         return False
@@ -231,7 +234,7 @@ def rsync_download_backup(target_name: str) -> bool:
     # Check if remote backup file exists
     print(f"🔍 Checking if backup exists on remote server...")
     if not check_remote_backup_exists(target):
-        print(f"Error: Backup file not found on remote server: {REMOTE_BACKUP_PATH}")
+        print(f"Error: Backup file not found on remote server: {REMOTE_BACKUP_PATH}", file=sys.stderr)
         print(f"Upload a backup first using: max rsync-upload-backup {target_name}")
         return False
     
@@ -272,29 +275,29 @@ def rsync_download_backup(target_name: str) -> bool:
                 print(f"💡 Import keys using: max ssh import-keys")
                 return True
             else:
-                print(f"❌ Download appeared successful but file not found locally")
+                print(f"❌ Download appeared successful but file not found locally", file=sys.stderr)
                 return False
         else:
-            print(f"❌ Download failed with exit code: {result.returncode}")
+            print(f"❌ Download failed with exit code: {result.returncode}", file=sys.stderr)
             return False
             
     except subprocess.TimeoutExpired:
-        print("❌ Download timed out (5 minute limit exceeded)")
+        print("❌ Download timed out (5 minute limit exceeded)", file=sys.stderr)
         return False
     except FileNotFoundError:
-        print("❌ Error: rsync command not found. Please install rsync.")
+        print("❌ Error: rsync command not found. Please install rsync.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"❌ Download failed: {e}")
+        print(f"❌ Download failed: {e}", file=sys.stderr)
         return False
 
 
 # CLI handler functions
-def handle_rsync_upload_backup(args) -> None:
+def handle_rsync_upload_backup(args) -> bool:
     """CLI handler for rsync-upload-backup command."""
-    rsync_upload_backup(args.target)
+    return rsync_upload_backup(args.target)
 
 
-def handle_rsync_download_backup(args) -> None:
+def handle_rsync_download_backup(args) -> bool:
     """CLI handler for rsync-download-backup command."""
-    rsync_download_backup(args.target) 
+    return rsync_download_backup(args.target)

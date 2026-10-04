@@ -1,5 +1,10 @@
 """Development environment setup commands."""
 from pathlib import Path
+import os
+import shutil
+import uuid
+
+from ..runtime import CommandError
 
 from ..config import check_initialization, get_config_value
 from ..utils.system import (
@@ -16,13 +21,13 @@ def setup_git_config():
     git_email = get_config_value('git_email')
     
     if git_name and git_email:
-        run(f'git config --global user.name "{git_name}"')
-        run(f'git config --global user.email "{git_email}"')
+        run(['git', 'config', '--global', 'user.name', git_name])
+        run(['git', 'config', '--global', 'user.email', git_email])
         print(f"✅ Git configured for {git_name} <{git_email}>")
     else:
         print("⚠️ Git name/email not configured. Run 'max init' to set up.")
 
-def clone_dotfiles():
+def clone_dotfiles(dry_run=False):
     """Clone dotfiles repository if configured."""
     dotfiles_repo = get_config_value('dotfiles_repo')
     
@@ -32,9 +37,12 @@ def clone_dotfiles():
         return
     
     dotfiles_path = Path.home().joinpath("dotfiles")
+    if dry_run:
+        print('Would clone configured dotfiles if missing and back up .zshrc/.gitconfig before replacement.')
+        return
     if not dotfiles_path.exists():
         print(f"📂 Cloning dotfiles from {dotfiles_repo}...")
-        run(f"git clone {dotfiles_repo} {dotfiles_path}")
+        run(["git", "clone", "--", dotfiles_repo, str(dotfiles_path)])
     else:
         print("✅ Dotfiles already cloned.")
         
@@ -43,10 +51,25 @@ def clone_dotfiles():
         source = dotfiles_path / dotfile
         dest = Path.home() / dotfile
         if source.exists():
-            run(f"cp {source} {dest}", check=False)
+            if source.is_symlink():
+                raise CommandError('Refusing dotfile source symlink: {}'.format(source))
+            backup = None
+            if dest.exists() or dest.is_symlink():
+                backup = dest.with_name(dest.name + '.maxcli-backup-' + uuid.uuid4().hex[:8])
+                os.replace(dest, backup)
+                print('Preserved existing {} at {}'.format(dest, backup))
+            try:
+                shutil.copy2(source, dest)
+            except BaseException:
+                if backup:
+                    os.replace(backup, dest)
+                raise
 
 def minimal_setup(_args):
     """Minimal terminal and git setup for basic development."""
+    if getattr(_args, 'dry_run', False):
+        print('Would install the profile tools and configure Git. Full setup also backs up and replaces configured dotfiles.')
+        return
     install_homebrew()
     install_brew_packages(["git", "zsh", "wget", "htop", "stow"])
     install_ohmyzsh()
@@ -55,8 +78,10 @@ def minimal_setup(_args):
 
 def dev_full_setup(_args):
     """Complete development environment with languages and tools."""
+    if getattr(_args, 'dry_run', False):
+        print('Would install the profile tools and configure Git. Full setup also backs up and replaces configured dotfiles.')
+        return
     check_initialization()
-    
     install_homebrew()
     install_brew_packages([
         "git", "node", "nvm", "python", "docker", "kubectl",
@@ -92,6 +117,9 @@ def interactive_app_selection():
 
 def apps_setup(args):
     """Install essential GUI applications for development and productivity."""
+    if getattr(args, 'dry_run', False):
+        print('Would install selected GUI applications through Homebrew Cask.')
+        return
     install_homebrew()
     
     # Check if user wants to install all apps without interaction

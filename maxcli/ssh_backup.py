@@ -1,3 +1,5 @@
+import sys
+from maxcli.runtime import prompt_input, require_interactive
 """SSH key backup and restore functionality for MaxCLI.
 
 This module provides secure backup and restore capabilities for SSH keys and 
@@ -16,7 +18,9 @@ from typing import List, Optional, Tuple, Dict
 
 # Configuration constants
 SSH_DIR = Path.home() / ".ssh"
-CONFIG_DIR = Path.home() / ".config" / "maxcli"
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 SSH_TARGETS_FILE = CONFIG_DIR / "ssh_targets.json"
 BACKUP_FILENAME = "ssh_keys_backup.tar.gz"
 ENCRYPTED_BACKUP_FILENAME = f"{BACKUP_FILENAME}.gpg"
@@ -115,7 +119,7 @@ def interactive_key_selection(available_keys: List[Path]) -> List[Path]:
             print(f"  {i}. {key_path.name}{pub_info}")
         
         try:
-            selection = input("\nSelect keys (comma-separated numbers, or 'all'): ").strip()
+            selection = prompt_input("\nSelect keys (comma-separated numbers, or 'all'): ").strip()
             
             if selection.lower() == 'all':
                 return available_keys
@@ -174,7 +178,7 @@ def create_backup_tarball(selected_keys: List[Path], backup_path: Path) -> bool:
             return True
             
     except (OSError, tarfile.TarError) as e:
-        print(f"Error: Failed to create backup tarball: {e}")
+        print(f"Error: Failed to create backup tarball: {e}", file=sys.stderr)
         return False
 
 
@@ -207,14 +211,14 @@ def encrypt_backup_with_gpg(backup_path: Path, encrypted_path: Path) -> bool:
             print(f"✅ Backup encrypted successfully: {encrypted_path}")
             return True
         else:
-            print(f"Error: GPG encryption failed")
+            print(f"Error: GPG encryption failed", file=sys.stderr)
             return False
             
     except FileNotFoundError:
-        print("Error: GPG command not found. Make sure GnuPG is installed.")
+        print("Error: GPG command not found. Make sure GnuPG is installed.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to execute GPG: {e}")
+        print(f"Error: Failed to execute GPG: {e}", file=sys.stderr)
         return False
     except KeyboardInterrupt:
         print("\nEncryption cancelled.")
@@ -277,7 +281,7 @@ def export_ssh_keys() -> bool:
             print("🗑️  Removed unencrypted tarball")
         
         if not encryption_success:
-            print("❌ Export failed due to encryption error")
+            print("❌ Export failed due to encryption error", file=sys.stderr)
             return False
         
         print(f"\n🎉 SSH keys exported successfully!")
@@ -287,7 +291,7 @@ def export_ssh_keys() -> bool:
         return True
         
     except Exception as e:
-        print(f"Error: Export failed: {e}")
+        print(f"Error: Export failed: {e}", file=sys.stderr)
         # Clean up on error - always remove unencrypted tarball for security
         for path in [backup_path, encrypted_path]:
             if path.exists():
@@ -326,7 +330,7 @@ def select_backup_file() -> Optional[Path]:
     
     if not backup_files:
         print("📁 No SSH backup files found in common locations.")
-        custom_path = input("Enter path to backup file (or press Enter to cancel): ").strip()
+        custom_path = prompt_input("Enter path to backup file (or press Enter to cancel): ").strip()
         
         if custom_path:
             backup_path = Path(custom_path).expanduser()
@@ -379,13 +383,13 @@ def select_backup_file() -> Optional[Path]:
         print(f"  {len(backup_files) + 1}. Enter custom path")
         
         try:
-            choice = input(f"\nSelect backup file (1-{len(backup_files) + 1}): ").strip()
+            choice = prompt_input(f"\nSelect backup file (1-{len(backup_files) + 1}): ").strip()
             
             if choice.isdigit():
                 index = int(choice) - 1
                 if index == len(backup_files):
                     # Custom path option
-                    file_path = input("Enter path to backup file: ").strip()
+                    file_path = prompt_input("Enter path to backup file: ").strip()
                     if file_path:
                         backup_path = Path(file_path).expanduser()
                         return backup_path if backup_path.exists() else None
@@ -427,14 +431,14 @@ def decrypt_backup_with_gpg(encrypted_path: Path, decrypted_path: Path) -> bool:
             print("✅ Backup decrypted successfully")
             return True
         else:
-            print(f"Error: GPG decryption failed. Wrong password or corrupted file.")
+            print(f"Error: GPG decryption failed. Wrong password or corrupted file.", file=sys.stderr)
             return False
             
     except FileNotFoundError:
-        print("Error: GPG command not found. Make sure GnuPG is installed.")
+        print("Error: GPG command not found. Make sure GnuPG is installed.", file=sys.stderr)
         return False
     except subprocess.SubprocessError as e:
-        print(f"Error: Failed to execute GPG: {e}")
+        print(f"Error: Failed to execute GPG: {e}", file=sys.stderr)
         return False
     except KeyboardInterrupt:
         print("\nDecryption cancelled.")
@@ -459,12 +463,12 @@ def validate_backup_contents(backup_path: Path) -> Tuple[bool, List[str]]:
             config_files = [f for f in files if f.startswith('config/')]
             
             if not ssh_keys:
-                print("Warning: No SSH keys found in backup")
+                print("Warning: No SSH keys found in backup", file=sys.stderr)
             
             return True, files
             
     except tarfile.TarError as e:
-        print(f"Error: Invalid backup file: {e}")
+        print(f"Error: Invalid backup file: {e}", file=sys.stderr)
         return False, []
 
 
@@ -530,7 +534,7 @@ def resolve_file_conflicts(conflicts: Dict[str, Path]) -> Optional[str]:
     print("  4. Cancel import")
     
     try:
-        choice = input("\nSelect option (1-4): ").strip()
+        choice = prompt_input("\nSelect option (1-4): ").strip()
         
         choice_map = {
             '1': 'overwrite',
@@ -567,7 +571,7 @@ def handle_individual_conflict(file_name: str, existing_path: Path) -> bool:
     print(f"   Existing file: {size:,} bytes, modified {mod_time}")
     
     try:
-        choice = input("   Overwrite with backup version? [y/N]: ").strip().lower()
+        choice = prompt_input("   Overwrite with backup version? [y/N]: ").strip().lower()
         return choice in ['y', 'yes']
     except (KeyboardInterrupt, EOFError):
         return False
@@ -669,7 +673,7 @@ def extract_backup_contents(backup_path: Path) -> bool:
             return True
             
     except (tarfile.TarError, OSError, PermissionError) as e:
-        print(f"Error: Failed to extract backup: {e}")
+        print(f"Error: Failed to extract backup: {e}", file=sys.stderr)
         return False
 
 
@@ -689,7 +693,7 @@ def import_ssh_keys() -> bool:
         return False
     
     if not backup_file.exists():
-        print(f"Error: Backup file not found: {backup_file}")
+        print(f"Error: Backup file not found: {backup_file}", file=sys.stderr)
         return False
     
     print(f"📁 Selected backup: {backup_file.name}")
@@ -716,7 +720,7 @@ def import_ssh_keys() -> bool:
         
         # Confirm extraction
         try:
-            confirm = input("\nProceed with extraction? [y/N]: ").strip().lower()
+            confirm = prompt_input("\nProceed with extraction? [y/N]: ").strip().lower()
             if confirm not in ['y', 'yes']:
                 print("Import cancelled.")
                 return False
@@ -736,7 +740,7 @@ def import_ssh_keys() -> bool:
         return True
         
     except Exception as e:
-        print(f"Error: Import failed: {e}")
+        print(f"Error: Import failed: {e}", file=sys.stderr)
         return False
         
     finally:
@@ -750,11 +754,13 @@ def import_ssh_keys() -> bool:
 
 
 # CLI handler functions
-def handle_export_ssh_keys(args) -> None:
+def handle_export_ssh_keys(args) -> bool:
     """CLI handler for ssh-export-keys command."""
-    export_ssh_keys()
+    require_interactive()
+    return export_ssh_keys()
 
 
-def handle_import_ssh_keys(args) -> None:
+def handle_import_ssh_keys(args) -> bool:
     """CLI handler for ssh-import-keys command."""
-    import_ssh_keys() 
+    require_interactive()
+    return import_ssh_keys()

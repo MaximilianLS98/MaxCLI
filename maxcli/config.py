@@ -1,18 +1,25 @@
+from maxcli.runtime import prompt_input
 """Configuration management for MaxCLI."""
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
 from .utils.interactive import prompt_for_config_value
+from .secrets import redact, prompt_secret
+from .storage import write_object
 
 # Configuration constants
-CONFIG_DIR = Path.home() / ".config" / "maxcli"
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 def ensure_config_dir() -> None:
     """Ensure the config directory exists."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)
 
 def load_config() -> Dict[str, Any]:
     """Load configuration from file, return empty dict if file doesn't exist."""
@@ -22,19 +29,18 @@ def load_config() -> Dict[str, Any]:
                 content = json.load(f)
                 return content if isinstance(content, dict) else {}
         except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️ Warning: Could not load config file: {e}")
+            print(f"⚠️ Warning: Could not load config file: {e}", file=sys.stderr)
             return {}
     return {}
 
 def save_config(config: Dict[str, Any]) -> bool:
     """Save configuration to file."""
-    ensure_config_dir()
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f, indent=2)
+        ensure_config_dir()
+        write_object(CONFIG_FILE, config)
         return True
     except IOError as e:
-        print(f"❌ Error saving config: {e}")
+        print(f"❌ Error saving config: {e}", file=sys.stderr)
         return False
 
 def is_initialized() -> bool:
@@ -45,6 +51,9 @@ def is_initialized() -> bool:
 
 def get_config_value(key: str, default: Any = None) -> Any:
     """Get a configuration value."""
+    overrides = {'coolify_api_key': 'MAXCLI_COOLIFY_API_KEY', 'coolify_instance_url': 'MAXCLI_COOLIFY_URL'}
+    if key in overrides and os.environ.get(overrides[key]):
+        return os.environ[overrides[key]]
     config = load_config()
     return config.get(key, default)
 
@@ -61,16 +70,16 @@ def check_initialization():
         print("This is a one-time setup to personalize the tool for your use.")
         print()
         
-        if input("Initialize now? (y/n): ").lower().startswith('y'):
+        if prompt_input("Initialize now? (y/n): ").lower().startswith('y'):
             print()
             # Import here to avoid circular import
-            from .commands.config_management import init_config
+            from .config import init_config
             # Create a mock args object for init_config
             class MockArgs:
                 force = False
             init_config(MockArgs())
         else:
-            print("❌ Initialization cancelled. Some features may not work correctly.")
+            print("❌ Initialization cancelled. Some features may not work correctly.", file=sys.stderr)
             print("💡 Run 'max init' when you're ready to configure the tool.")
             sys.exit(1)
 
@@ -86,10 +95,10 @@ def init_config(args):
         print("✅ Configuration already exists!")
         print(f"📁 Config location: {CONFIG_FILE}")
         print("\nCurrent configuration:")
-        for key, value in config.items():
+        for key, value in redact(config).items():
             print(f"  {key}: {value}")
         
-        update = input("\nDo you want to update your configuration? (y/n): ").lower().startswith('y')
+        update = prompt_input("\nDo you want to update your configuration? (y/n): ").lower().startswith('y')
         if not update:
             print("Configuration unchanged.")
             return
@@ -120,12 +129,8 @@ def init_config(args):
     # Coolify API key (optional)
     print("\nCoolify API key (optional):")
     print("This will be used for managing Coolify resources.")
-    config['coolify_api_key'] = prompt_for_config_value(
-        "Coolify API key (leave empty to skip)",
-        config.get('coolify_api_key'),
-        required=False
-    )
-    
+    config['coolify_api_key'] = prompt_secret("Coolify API key", config.get('coolify_api_key'))
+
     config['coolify_instance_url'] = prompt_for_config_value(
         "Coolify instance URL (e.g., https://coolify.example.com, leave empty to skip)",
         config.get('coolify_instance_url'),
@@ -140,13 +145,13 @@ def init_config(args):
     if 'quota_project_mappings' not in config:
         config['quota_project_mappings'] = {}
     
-    manage_mappings = input("Do you want to configure GCP project mappings now? (y/n): ").lower().startswith('y')
+    manage_mappings = prompt_input("Do you want to configure GCP project mappings now? (y/n): ").lower().startswith('y')
     if manage_mappings:
         print("\nEnter your GCP project mappings (config_name -> project_id):")
         print("Press Enter with empty config name to finish.")
         
         while True:
-            config_name = input("Config name (empty to finish): ").strip()
+            config_name = prompt_input("Config name (empty to finish): ").strip()
             if not config_name:
                 break
                 
@@ -193,5 +198,5 @@ def init_config(args):
         print("└" + "─"*58 + "┘")
         
     else:
-        print("\n❌ Failed to save configuration.")
-        sys.exit(1) 
+        print("\n❌ Failed to save configuration.", file=sys.stderr)
+        sys.exit(1)
