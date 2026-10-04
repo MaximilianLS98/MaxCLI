@@ -1,3 +1,4 @@
+from maxcli.runtime import prompt_input
 """
 MaxCLI Configuration Management Module.
 
@@ -24,6 +25,9 @@ from typing import Optional, Tuple, Dict, Any, List
 
 from maxcli.ssh_manager import load_ssh_targets, interactive_target_picker
 from maxcli.config import init_config as _init_config
+from maxcli.paths import config_dir
+
+CONFIG_DIR = config_dir()
 
 
 def get_backup_filename() -> str:
@@ -45,9 +49,9 @@ def create_local_backup(destination: Optional[str] = None) -> Tuple[bool, Option
     Returns:
         Tuple of (success, backup_path)
     """
-    config_dir = Path.home() / ".config" / "maxcli"
+    config_dir = CONFIG_DIR
     if not config_dir.exists():
-        print("❌ MaxCLI configuration directory not found")
+        print("❌ MaxCLI configuration directory not found", file=sys.stderr)
         return False, None
     
     # Determine backup destination
@@ -79,7 +83,7 @@ def create_local_backup(destination: Optional[str] = None) -> Tuple[bool, Option
         return True, actual_backup_path
         
     except Exception as e:
-        print(f"❌ Failed to create backup: {e}")
+        print(f"❌ Failed to create backup: {e}", file=sys.stderr)
         return False, None
 
 
@@ -97,12 +101,12 @@ def upload_backup_to_ssh(backup_file: str, target: str, destination: Optional[st
     # Verify the backup file exists before attempting upload
     backup_path = Path(backup_file)
     if not backup_path.exists():
-        print(f"❌ Backup file not found: {backup_file}")
+        print(f"❌ Backup file not found: {backup_file}", file=sys.stderr)
         return False
     
     targets = load_ssh_targets()
     if target not in targets:
-        print(f"❌ SSH target '{target}' not found")
+        print(f"❌ SSH target '{target}' not found", file=sys.stderr)
         return False
     
     ssh_target = targets[target]
@@ -128,13 +132,13 @@ def upload_backup_to_ssh(backup_file: str, target: str, destination: Optional[st
             print("✅ Backup uploaded successfully")
             return True
         else:
-            print(f"❌ Failed to upload backup (exit code: {result.returncode})")
+            print(f"❌ Failed to upload backup (exit code: {result.returncode})", file=sys.stderr)
             if result.stderr:
                 print(f"   Error details: {result.stderr.strip()}")
             return False
             
     except subprocess.SubprocessError as e:
-        print(f"❌ Failed to execute rsync: {e}")
+        print(f"❌ Failed to execute rsync: {e}", file=sys.stderr)
         return False
 
 
@@ -151,7 +155,7 @@ def download_backup_from_ssh(target: str, backup_file: str, destination: Optiona
     """
     targets = load_ssh_targets()
     if target not in targets:
-        print(f"❌ SSH target '{target}' not found")
+        print(f"❌ SSH target '{target}' not found", file=sys.stderr)
         return False, None
     
     ssh_target = targets[target]
@@ -184,11 +188,11 @@ def download_backup_from_ssh(target: str, backup_file: str, destination: Optiona
             print("✅ Backup downloaded successfully")
             return True, str(local_file)
         else:
-            print(f"❌ Failed to download backup (exit code: {result.returncode})")
+            print(f"❌ Failed to download backup (exit code: {result.returncode})", file=sys.stderr)
             return False, None
             
     except subprocess.SubprocessError as e:
-        print(f"❌ Failed to execute rsync: {e}")
+        print(f"❌ Failed to execute rsync: {e}", file=sys.stderr)
         return False, None
 
 
@@ -203,7 +207,7 @@ def list_remote_backups(target: str) -> List[str]:
     """
     targets = load_ssh_targets()
     if target not in targets:
-        print(f"❌ SSH target '{target}' not found")
+        print(f"❌ SSH target '{target}' not found", file=sys.stderr)
         return []
     
     ssh_target = targets[target]
@@ -221,11 +225,11 @@ def list_remote_backups(target: str) -> List[str]:
             backups = [line.strip() for line in result.stdout.splitlines() if line.strip()]
             return [Path(b).name for b in backups]
         else:
-            print(f"❌ Failed to list remote backups (exit code: {result.returncode})")
+            print(f"❌ Failed to list remote backups (exit code: {result.returncode})", file=sys.stderr)
             return []
             
     except subprocess.SubprocessError as e:
-        print(f"❌ Failed to execute SSH command: {e}")
+        print(f"❌ Failed to execute SSH command: {e}", file=sys.stderr)
         return []
 
 
@@ -240,7 +244,7 @@ def extract_backup(backup_file: str, destination: Optional[str] = None) -> Tuple
         Tuple of (success, extracted_path)
     """
     if not Path(backup_file).exists():
-        print(f"❌ Backup file not found: {backup_file}")
+        print(f"❌ Backup file not found: {backup_file}", file=sys.stderr)
         return False, None
     
     # Create temporary directory if no destination specified
@@ -258,14 +262,14 @@ def extract_backup(backup_file: str, destination: Optional[str] = None) -> Tuple
         config_dir = extract_dir / "maxcli"
         
         if not config_dir.exists():
-            print("❌ Invalid backup: maxcli directory not found in archive")
+            print("❌ Invalid backup: maxcli directory not found in archive", file=sys.stderr)
             return False, None
         
         print("✅ Backup extracted successfully")
         return True, str(config_dir)
         
     except Exception as e:
-        print(f"❌ Failed to extract backup: {e}")
+        print(f"❌ Failed to extract backup: {e}", file=sys.stderr)
         return False, None
 
 
@@ -329,11 +333,11 @@ def restore_config(backup_file: str, merge: bool = False) -> bool:
     Returns:
         True if restore was successful, False otherwise
     """
-    config_dir = Path.home() / ".config" / "maxcli"
+    config_dir = CONFIG_DIR
     
     # Extract backup to temporary directory
     success, extracted_path = extract_backup(backup_file)
-    if not success:
+    if not success or extracted_path is None:
         return False
     
     extracted_dir = Path(extracted_path)
@@ -360,7 +364,7 @@ def restore_config(backup_file: str, merge: bool = False) -> bool:
             print("✅ Configurations merged successfully")
             
         except Exception as e:
-            print(f"❌ Failed to merge configurations: {e}")
+            print(f"❌ Failed to merge configurations: {e}", file=sys.stderr)
             return False
     
     # Copy other configuration files
@@ -381,7 +385,7 @@ def restore_config(backup_file: str, merge: bool = False) -> bool:
         return True
         
     except Exception as e:
-        print(f"❌ Failed to restore configuration: {e}")
+        print(f"❌ Failed to restore configuration: {e}", file=sys.stderr)
         return False
 
 
@@ -420,7 +424,7 @@ def handle_config_restore(args) -> None:
         # List available backups on remote server
         backups = list_remote_backups(args.target)
         if not backups:
-            print(f"❌ No backups found on {args.target}")
+            print(f"❌ No backups found on {args.target}", file=sys.stderr)
             sys.exit(1)
         
         # Let user select a backup
@@ -429,9 +433,9 @@ def handle_config_restore(args) -> None:
             print(f"  {i}. {backup}")
         
         try:
-            choice = int(input("\nSelect backup to restore (number): ").strip())
+            choice = int(prompt_input("\nSelect backup to restore (number): ").strip())
             if not (1 <= choice <= len(backups)):
-                print("❌ Invalid selection")
+                print("❌ Invalid selection", file=sys.stderr)
                 sys.exit(1)
             
             backup_file = backups[choice - 1]
@@ -442,16 +446,16 @@ def handle_config_restore(args) -> None:
                 sys.exit(1)
             
         except (ValueError, KeyboardInterrupt):
-            print("\n❌ Invalid selection or cancelled")
+            print("\n❌ Invalid selection or cancelled", file=sys.stderr)
             sys.exit(1)
     else:
         if args.backup_file is None:
-            print("❌ Error: --backup-file is required when not using --target")
+            print("❌ Error: --backup-file is required when not using --target", file=sys.stderr)
             sys.exit(1)
         local_file = args.backup_file
     
     # Check if local config exists
-    config_dir = Path.home() / ".config" / "maxcli"
+    config_dir = CONFIG_DIR
     if config_dir.exists():
         print("\n⚠️  Existing configuration found!")
         print("Choose how to proceed:")
@@ -460,7 +464,7 @@ def handle_config_restore(args) -> None:
         print("  3. Merge configurations (experimental)")
         
         try:
-            choice = int(input("\nSelect option (1-3): ").strip())
+            choice = int(prompt_input("\nSelect option (1-3): ").strip())
             if choice == 1:
                 print("Keeping local configuration")
                 return
@@ -469,10 +473,10 @@ def handle_config_restore(args) -> None:
             elif choice == 3:
                 merge = True
             else:
-                print("❌ Invalid selection")
+                print("❌ Invalid selection", file=sys.stderr)
                 sys.exit(1)
         except (ValueError, KeyboardInterrupt):
-            print("\n❌ Invalid selection or cancelled")
+            print("\n❌ Invalid selection or cancelled", file=sys.stderr)
             sys.exit(1)
     else:
         merge = False
@@ -649,4 +653,4 @@ Examples:
         help='Local directory to save downloaded backup (default: ~/backups)'
     )
     
-    restore_parser.set_defaults(func=handle_config_restore) 
+    restore_parser.set_defaults(func=handle_config_restore)

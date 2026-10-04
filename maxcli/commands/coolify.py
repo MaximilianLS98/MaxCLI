@@ -11,7 +11,7 @@ def get_coolify_config() -> Tuple[Optional[str], Optional[str]]:
     instance_url = get_config_value('coolify_instance_url')
     
     if not api_key or not instance_url:
-        print("❌ Coolify API key or instance URL not configured.")
+        print("❌ Coolify API key or instance URL not configured.", file=sys.stderr)
         print("💡 Run 'max init' to configure Coolify settings.")
         return None, None
     
@@ -54,7 +54,7 @@ def make_coolify_request(endpoint: str, method: str = 'GET', data: Optional[Dict
         if result.stdout:
             # Check if response looks like HTML (authentication redirect)
             if result.stdout.strip().startswith('<!DOCTYPE html>') or result.stdout.strip().startswith('<html'):
-                print("❌ Authentication failed - received HTML redirect instead of JSON")
+                print("❌ Authentication failed - received HTML redirect instead of JSON", file=sys.stderr)
                 print("💡 This usually means:")
                 print("   • Your API key is invalid or expired")
                 print("   • Your API key doesn't have sufficient permissions")
@@ -73,28 +73,28 @@ def make_coolify_request(endpoint: str, method: str = 'GET', data: Optional[Dict
                 if isinstance(json_response, dict) and 'message' in json_response:
                     message = json_response['message']
                     if 'permission' in message.lower() or 'unauthorized' in message.lower():
-                        print(f"❌ Permission denied: {message}")
+                        print(f"❌ Permission denied: {message}", file=sys.stderr)
                         print("💡 Your API key may not have the required permissions for this operation")
                         print("💡 Check your API key permissions in the Coolify dashboard")
                         return None
                     elif 'not found' in message.lower():
-                        print(f"❌ Endpoint not found: {message}")
+                        print(f"❌ Endpoint not found: {message}", file=sys.stderr)
                         print("💡 This endpoint may not be available in your Coolify version")
                         return None
                 
                 return json_response
             except json.JSONDecodeError:
-                print(f"❌ Invalid JSON response from Coolify API")
+                print(f"❌ Invalid JSON response from Coolify API", file=sys.stderr)
                 print(f"Response preview: {result.stdout[:200]}...")
                 return None
         return {} if expect_json else ""
     except subprocess.CalledProcessError as e:
-        print(f"❌ API request failed: {e}")
+        print(f"❌ API request failed: {e}", file=sys.stderr)
         if e.stderr:
-            print(f"Error: {e.stderr}")
+            print(f"Error: {e.stderr}", file=sys.stderr)
         return None
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"❌ Unexpected error: {e}", file=sys.stderr)
         return None
 
 def format_status(status: str) -> str:
@@ -176,7 +176,7 @@ def coolify_services(args) -> None:
         return
     
     if not isinstance(response, list):
-        print("❌ Unexpected response format from services endpoint")
+        print("❌ Unexpected response format from services endpoint", file=sys.stderr)
         print(f"Response preview: {str(response)[:200]}...")
         return
     
@@ -216,7 +216,7 @@ def coolify_applications(args) -> None:
         return
     
     if not isinstance(response, list):
-        print("❌ Unexpected response format from applications endpoint")
+        print("❌ Unexpected response format from applications endpoint", file=sys.stderr)
         print(f"Response preview: {str(response)[:200]}...")
         return
     
@@ -266,7 +266,7 @@ def coolify_servers(args) -> None:
         return
     
     if not isinstance(response, list):
-        print("❌ Unexpected response format from servers endpoint")
+        print("❌ Unexpected response format from servers endpoint", file=sys.stderr)
         print(f"Response preview: {str(response)[:200]}...")
         return
     
@@ -306,7 +306,7 @@ def coolify_resources(args) -> None:
         return
     
     if not isinstance(response, list):
-        print("❌ Unexpected response format from resources endpoint")
+        print("❌ Unexpected response format from resources endpoint", file=sys.stderr)
         print(f"Response preview: {str(response)[:200]}...")
         return
     
@@ -338,7 +338,7 @@ def coolify_resources(args) -> None:
 def coolify_start_service(args) -> None:
     """Start a service by UUID."""
     if not args.uuid:
-        print("❌ Service UUID is required")
+        print("❌ Service UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify services' to list available services and their UUIDs")
         sys.exit(1)
     
@@ -355,7 +355,7 @@ def coolify_start_service(args) -> None:
 def coolify_stop_service(args) -> None:
     """Stop a service by UUID."""
     if not args.uuid:
-        print("❌ Service UUID is required")
+        print("❌ Service UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify services' to list available services and their UUIDs")
         sys.exit(1)
     
@@ -372,7 +372,7 @@ def coolify_stop_service(args) -> None:
 def coolify_restart_service(args) -> None:
     """Restart a service by UUID."""
     if not args.uuid:
-        print("❌ Service UUID is required")
+        print("❌ Service UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify services' to list available services and their UUIDs")
         sys.exit(1)
     
@@ -393,7 +393,7 @@ def coolify_status(args) -> None:
     # Check health first
     health_response = make_coolify_request('/health', expect_json=False)
     if health_response is None:
-        print("❌ Could not connect to Coolify instance")
+        print("❌ Could not connect to Coolify instance", file=sys.stderr)
         sys.exit(1)
     
     if health_response and health_response.lower() == 'ok':
@@ -437,7 +437,7 @@ def coolify_status(args) -> None:
 def coolify_start_application(args) -> None:
     """Start an application by UUID."""
     if not args.uuid:
-        print("❌ Application UUID is required")
+        print("❌ Application UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify applications' to list available applications and their UUIDs")
         sys.exit(1)
     
@@ -454,7 +454,7 @@ def coolify_start_application(args) -> None:
 def coolify_stop_application(args) -> None:
     """Stop an application by UUID."""
     if not args.uuid:
-        print("❌ Application UUID is required")
+        print("❌ Application UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify applications' to list available applications and their UUIDs")
         sys.exit(1)
     
@@ -471,7 +471,7 @@ def coolify_stop_application(args) -> None:
 def coolify_restart_application(args) -> None:
     """Restart an application by UUID."""
     if not args.uuid:
-        print("❌ Application UUID is required")
+        print("❌ Application UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify applications' to list available applications and their UUIDs")
         sys.exit(1)
     
@@ -488,7 +488,7 @@ def coolify_restart_application(args) -> None:
 def coolify_deploy_application(args) -> None:
     """Deploy an application by UUID."""
     if not args.uuid:
-        print("❌ Application UUID is required")
+        print("❌ Application UUID is required", file=sys.stderr)
         print("💡 Use 'max coolify applications' to list available applications and their UUIDs")
         sys.exit(1)
     
@@ -500,4 +500,4 @@ def coolify_deploy_application(args) -> None:
     
     print("✅ Application deployment started successfully!")
     if response:
-        print(f"Response: {json.dumps(response, indent=2)}") 
+        print(f"Response: {json.dumps(response, indent=2)}")
