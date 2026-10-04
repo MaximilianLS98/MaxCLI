@@ -92,3 +92,9 @@ See [configuration safety, encrypted backups, and previews](docs/CONFIGURATION_S
 
 Additional documentation: [extensions](docs/extending_maxcli.md),
 [Coolify](docs/COOLIFY_README.md), [CSV processing](docs/CSV_PROCESSING_README.md).
+
+## Contributing
+
+Every PR must include a release-note entry. Agents must follow [AGENTS.md](AGENTS.md).
+See the [entry format](release-notes/README.md) and [GitHub release guide](docs/RELEASING.md)
+for authoring, validation, and automatic release assembly.
