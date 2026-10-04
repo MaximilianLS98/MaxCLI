@@ -1,0 +1,1 @@
+Run the stable `max` command beside an editable `max-dev` checkout. Source edits load on the next development invocation while stable code and configuration remain isolated. Managed updates build and smoke-test a new environment before activation, support release pinning and rollback, and show offline version/channel metadata.

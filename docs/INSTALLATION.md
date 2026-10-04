@@ -16,7 +16,7 @@ installs that tag into a dedicated virtual environment. It never installs `main`
 as the stable CLI. To pin an existing release:
 
 ```sh
-./bootstrap.sh --version v1.0.0
+./bootstrap.sh --version v2.0.0
 ```
 
 Add `~/.local/bin` before older installations in your shell PATH:
@@ -29,6 +29,22 @@ Persist that line in your shell configuration if needed. Verify with `command -v
 max` and `max --version`. If a different executable already occupies the target
 path, installation stops. `--replace-existing` backs it up before replacement.
 An older `~/bin/max` is left intact; PATH order decides which command runs.
+
+## Migrate an older installation to v2
+
+MaxCLI 2 requires Python 3.10 or newer. If your `max` comes from the old
+bootstrap installer, run the current `bootstrap.sh` once to adopt the managed
+installation, then put `~/.local/bin` first on PATH and run `hash -r`.
+Use `--replace-existing` only if the installer reports a conflicting executable;
+it saves that executable before replacing it. Existing configuration is retained.
+Verify `max --version --json` reports the `stable` channel and release `v2.0.0`.
+Subsequent upgrades use `max update`; existing managed installations can use
+`max update` immediately.
+
+Development now uses the separate `max-dev` command and configuration directory.
+Rerun the development bootstrap below to associate it with your checkout.
+Plain configuration backups omit recognized secret fields; use an encrypted
+backup when you need to preserve credentials. See [configuration safety](CONFIGURATION_SAFETY.md).
 
 ## Develop alongside stable
 
@@ -80,7 +96,7 @@ max --version --json
 max update --check-only
 max update --show-releases
 max update                     # install latest published stable release
-max update --version v1.0.0    # explicit pin/downgrade
+max update --version v2.0.0    # explicit pin/downgrade
 max update --rollback
 ```
 

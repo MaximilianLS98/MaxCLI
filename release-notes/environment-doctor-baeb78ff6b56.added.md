@@ -1,0 +1,1 @@
+Use `max doctor` or `max doctor --json` for read-only checks of dependencies, configuration permissions, registered paths, and local tool contexts, even before initialization or with malformed module configuration. Network probes are explicitly enabled with `--network`.

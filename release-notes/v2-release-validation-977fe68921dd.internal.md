@@ -1,0 +1,1 @@
+Set the package and runtime versions to 2.0.0 and document migration and released command examples. The public behavior is covered by the accompanying feature and breaking-change entries; this entry records release preparation and requires no additional public note.
