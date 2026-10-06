@@ -49,6 +49,22 @@ max doctor --network  # optional GitHub/Coolify probes
 
 See [diagnostic checks and exit codes](docs/DOCTOR.md).
 
+## Development disk cleanup
+
+```sh
+max clean                               # Preview development cache sizes
+max clean --all                         # Also identify larger data folders for manual review
+max clean --category xcode --category gradle --apply
+max clean --category npm --apply --yes   # Explicitly clear the npm package cache
+```
+
+Cleanup supports package caches, Gradle, CocoaPods, Xcode build output, simulator
+caches, and test browsers. The default is a preview; removal requires `--apply`
+and confirmation. Stop tools using the selected caches first. Downloads, builds,
+or browser installation may be required afterward.
+
+See [supported locations, estimates, and cleanup safety](docs/CLEANUP.md).
+
 ## Configuration and modules
 
 ```sh

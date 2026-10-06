@@ -52,6 +52,7 @@ Core Commands:
   max config init                 # Initialize CLI with your personal configuration
   max config backup               # Backup your MaxCLI configuration
   max config restore              # Restore configuration from backup
+  max clean                       # Preview development caches and cleanup options
   max update                      # Update MaxCLI to the latest version from GitHub
   max uninstall                   # Deactivate this channel; preserve user data
   
@@ -94,6 +95,8 @@ def register_core_commands(subparsers) -> None:
     register_projects(subparsers)
     from .doctor import register_commands as register_doctor
     register_doctor(subparsers)
+    from .cleanup import register_commands as register_cleanup
+    register_cleanup(subparsers)
     from .installation import add_update_arguments, uninstall
     update_parser = subparsers.add_parser('update', help='Update the stable GitHub release or roll back')
     add_update_arguments(update_parser)
@@ -128,9 +131,9 @@ def _main() -> None:
     
     # Load and register enabled modules dynamically
     first = next((arg for arg in sys.argv[1:] if arg != '--non-interactive'), None)
-    # Diagnostics must work even when module configuration is corrupt, and help/version
+    # Diagnostics and cleanup must work even when module configuration is corrupt, and help/version
     # must not initialize or migrate user state.
-    if first not in ('doctor', '--help', '-h', '--version', '-v'):
+    if first not in ('doctor', 'clean', '--help', '-h', '--version', '-v'):
         load_and_register_modules(subparsers)
     elif first in ('--help', '-h'):
         # Show available commands without loading (and potentially rewriting) user config.
