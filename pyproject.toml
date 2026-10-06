@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "maxcli"
-version = "2.0.0"
+version = "2.1.0"
 description = "Max's Personal CLI - A modular collection of useful development and operations commands"
 readme = "README.md"
 license = {text = "MIT"}
@@ -159,4 +159,4 @@ exclude_lines = [
     "raise NotImplementedError",
     "if 0:",
     "if __name__ == .__main__.:"
-] 
+]

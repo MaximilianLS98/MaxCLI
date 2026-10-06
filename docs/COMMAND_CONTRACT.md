@@ -9,7 +9,9 @@ etc.) may have their own interactive behavior; pass their explicit credentials
 or use those tools directly for unattended authentication.
 
 Structured output is available on `max modules list --json` and
-`max ssh targets list --json`. Unsupported JSON options fail during parsing.
+`max ssh targets list --json`, as well as `max clean --json`. Cleanup previews
+by default; unattended removal requires `max --non-interactive clean --apply --yes`.
+See [cleanup reports and failure behavior](CLEANUP.md). Unsupported JSON options fail during parsing.
 Module enabling accepts multiple names and validates them before changing state.
 
 `max init` is an alias for `max config init`. A malformed module configuration

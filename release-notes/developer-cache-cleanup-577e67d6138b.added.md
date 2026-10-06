@@ -1,0 +1,1 @@
+Add max clean to preview development cache sizes and explicitly clear selected npm, Bun, pnpm metadata, Gradle, CocoaPods, Xcode, simulator, and test-browser caches. Broader scans identify simulator runtimes, Android installations, and application data for manual review without deleting them.
