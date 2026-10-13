@@ -15,7 +15,7 @@ from .runtime import CommandError
 from .secrets import redact
 from .storage import read_object, write_object
 
-FILES = ('config.json', 'modules_config.json', 'ssh_targets.json', 'projects.json')
+FILES = ('config.json', 'modules_config.json', 'ssh_targets.json', 'projects.json', 'saved_commands.json')
 LIMIT = 64 * 1024 * 1024
 
 
@@ -35,6 +35,9 @@ def create_backup(config, destination=None, recipient=None):
                 if path.is_symlink():
                     raise CommandError('Refusing to back up configuration symlink: {}'.format(path))
                 if not path.is_file():
+                    continue
+                # Recipes can contain arbitrary inline secrets; preserve them only in encrypted backups.
+                if filename == 'saved_commands.json' and not recipient:
                     continue
                 data = read_object(path)
                 if not recipient:
@@ -114,6 +117,9 @@ def extracted_backup(path):
 
 
 def validate_config(filename, data):
+    if filename == 'saved_commands.json':
+        from .saved_commands import validate_pack
+        validate_pack(data)
     if filename == 'modules_config.json':
         enabled = data.get('enabled_modules', [])
         info = data.get('module_info', {})
@@ -165,7 +171,13 @@ def restore_backup(path, config, merge=False, dry_run=False):
             for name in names:
                 data = read_object(incoming / name)
                 if merge and (staged / name).exists():
-                    data = merge_objects(read_object(staged / name), data)
+                    local = read_object(staged / name)
+                    if name == 'saved_commands.json':
+                        # Recipes are complete definitions; merging variable fields can invalidate a changed template.
+                        validate_config(name, local)
+                        data = {'version': 1, 'commands': dict(local['commands'], **data['commands'])}
+                    else:
+                        data = merge_objects(local, data)
                 validate_config(name, data)
                 write_object(staged / name, data)
             backup = config.with_name(config.name + '.before-restore-' + uuid.uuid4().hex[:8])

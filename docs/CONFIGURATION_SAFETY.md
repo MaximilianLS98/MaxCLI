@@ -36,7 +36,9 @@ registration backups include only names, paths, and tags. Unknown files are not
 included. Secret detection is based on field names: do not put secrets in
 unrelated fields, paths, tags, or URLs.
 
-Use `--encrypt --recipient` for a GPG-encrypted backup including stored credentials.
+Use `--encrypt --recipient` for a GPG-encrypted backup including stored credentials
+and saved command recipes. Unencrypted backups omit saved commands because
+arguments and defaults can contain inline secrets.
 GPG must be installed and the recipient's public key must already be available.
 Restore requires the corresponding private key; unlock it with your usual GPG
 agent before unattended restore. Temporary plaintext stays in private temporary

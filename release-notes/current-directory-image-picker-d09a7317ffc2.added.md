@@ -1,0 +1,1 @@
+Interactive image recipes offer a picker of image files in the current working directory when input is omitted, with manual path entry for other locations. Explicit input arguments and non-interactive runs bypass the picker.

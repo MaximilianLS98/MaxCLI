@@ -93,6 +93,8 @@ def register_core_commands(subparsers) -> None:
     init_parser.set_defaults(func=init_config)
     from .projects import register_commands as register_projects
     register_projects(subparsers)
+    from .images import register_commands as register_images
+    register_images(subparsers)
     from .doctor import register_commands as register_doctor
     register_doctor(subparsers)
     from .cleanup import register_commands as register_cleanup
@@ -131,9 +133,9 @@ def _main() -> None:
     
     # Load and register enabled modules dynamically
     first = next((arg for arg in sys.argv[1:] if arg != '--non-interactive'), None)
-    # Diagnostics and cleanup must work even when module configuration is corrupt, and help/version
+    # Core utilities must work even when module configuration is corrupt, and help/version
     # must not initialize or migrate user state.
-    if first not in ('doctor', 'clean', '--help', '-h', '--version', '-v'):
+    if first not in ('doctor', 'clean', 'gm', '--help', '-h', '--version', '-v'):
         load_and_register_modules(subparsers)
     elif first in ('--help', '-h'):
         # Show available commands without loading (and potentially rewriting) user config.
