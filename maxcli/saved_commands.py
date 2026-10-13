@@ -187,6 +187,9 @@ def resolve_values(recipe, supplied):
                 if value is None:
                     raise CommandError('Selection cancelled')
                 values[name] = value
+            elif recipe.get('engine') == 'imagemagick' and name == 'input' and 'default' not in settings:
+                from .images import pick_input_image
+                values[name] = pick_input_image(settings.get('prompt', name))
             else:
                 default = settings.get('default')
                 prompt = settings.get('prompt', name) + (' [{}]'.format(default) if default is not None else '')

@@ -118,3 +118,62 @@ def test_restore_merge_replaces_complete_recipe_and_retains_local_only(tmp_path)
     restored = json.loads((target / 'saved_commands.json').read_text())
     assert restored['commands']['shared'] == incoming['commands']['shared']
     assert restored['commands']['local only'] == local['commands']['local only']
+
+
+def test_image_picker_filters_current_directory_and_preserves_names(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for name in ('z.png', 'A screenshot.PNG', 'photo.jpeg', '.hidden.png', 'notes.txt'):
+        (tmp_path / name).write_text('placeholder')
+    (tmp_path / 'folder.jpg').mkdir()
+    (tmp_path / 'nested').mkdir()
+    (tmp_path / 'nested' / 'inside.png').write_text('placeholder')
+    offered = []
+    monkeypatch.setattr(images, 'interactive_selection',
+                        lambda title, choices: offered.append((title, choices)) or 'A screenshot.PNG')
+    assert images.pick_input_image() == 'A screenshot.PNG'
+    assert offered[0][1] == ['A screenshot.PNG', 'photo.jpeg', 'z.png', images.MANUAL_PATH]
+    assert str(tmp_path) in offered[0][0]
+
+
+def test_image_picker_manual_entry_empty_directory_and_cancel(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    prompts = []
+    monkeypatch.setattr(images, 'prompt_input', lambda prompt: prompts.append(prompt) or '../other image.png')
+    # Empty directories fall back to a path prompt without an empty menu.
+    monkeypatch.setattr(images, 'interactive_selection', lambda *args: pytest.fail('Unexpected picker'))
+    assert images.pick_input_image('Source') == '../other image.png'
+    assert prompts == ['Source: ']
+    (tmp_path / 'here.png').touch()
+    monkeypatch.setattr(images, 'interactive_selection', lambda *args: images.MANUAL_PATH)
+    assert images.pick_input_image() == '../other image.png'
+    monkeypatch.setattr(images, 'interactive_selection', lambda *args: None)
+    with pytest.raises(CommandError, match='cancelled'):
+        images.pick_input_image()
+
+
+def test_input_picker_respects_explicit_values_defaults_choices_and_noninteractive(monkeypatch):
+    recipe = {'engine': 'imagemagick', 'variables': {'input': {}}}
+    picked = []
+    monkeypatch.setattr(images, 'pick_input_image', lambda prompt: picked.append(prompt) or 'picked.png')
+    monkeypatch.setattr(recipes, 'prompt_input', lambda _: '')
+    monkeypatch.setattr(recipes, 'interactive_selection', lambda *args: 'choice.png')
+    token = NON_INTERACTIVE.set(False)
+    try:
+        assert recipes.resolve_values(recipe, {}) == {'input': 'picked.png'}
+        assert recipes.resolve_values(recipe, {'input': 'explicit.png'}) == {'input': 'explicit.png'}
+        recipe['variables']['input'] = {'default': 'default.png'}
+        assert recipes.resolve_values(recipe, {}) == {'input': 'default.png'}
+        recipe['variables']['input'] = {'choices': ['choice.png']}
+        assert recipes.resolve_values(recipe, {}) == {'input': 'choice.png'}
+        assert picked == ['input']
+    finally:
+        NON_INTERACTIVE.reset(token)
+    token = NON_INTERACTIVE.set(True)
+    try:
+        recipe['variables']['input'] = {}
+        with pytest.raises(CommandError, match='Missing variable input'):
+            recipes.resolve_values(recipe, {})
+        assert recipes.resolve_values(recipe, {'input': 'explicit.png'}) == {'input': 'explicit.png'}
+        assert picked == ['input']
+    finally:
+        NON_INTERACTIVE.reset(token)

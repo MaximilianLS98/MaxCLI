@@ -69,6 +69,7 @@ See [supported locations, estimates, and cleanup safety](docs/CLEANUP.md).
 
 ```sh
 max gm appstore --input screenshot.png --output appstore.png
+max gm appstore                         # Pick an image from the current directory
 max gm                                  # Choose a recipe, then its inputs
 max gm commands run                     # Choose a saved command, then its variables
 max gm commands list
@@ -82,7 +83,8 @@ max gm commands import image-recipes.json --replace
 
 The App Store preset forces **1284x2778** pixels and flattens onto white. Variables
 can have prompts, defaults, and choices. Recipes live in the active channel's
-settings and can be shared as JSON packs. ImageMagick (`magick`) or GraphicsMagick
+settings and can be shared as JSON packs. Omitted image inputs offer files from
+the current directory in interactive terminals. ImageMagick (`magick`) or GraphicsMagick
 (`gm`) is required for image conversion; on macOS, install with
 `brew install imagemagick`.
 

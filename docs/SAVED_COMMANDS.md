@@ -9,8 +9,8 @@ ImageMagick when installed and falls back to GraphicsMagick.
 
 ```sh
 max gm appstore --input 'input file.png' --output 'appstore screenshot.png'
-max gm appstore                       # Prompt for paths, geometry, and background
-max gm                                # Choose a recipe, then enter its variables
+max gm appstore                       # Pick an image here, then enter output and options
+max gm                                # Choose a recipe, then pick an image here
 max gm appstore --input input.png --output output.png --dry-run
 max gm appstore --input input.png --output output.png --overwrite
 ```
@@ -28,6 +28,19 @@ image. This is the requested size, not a claim that it is suitable for every
 App Store device listing. `--size` accepts other ImageMagick geometry strings.
 The default background is white; interactive invocation offers white and black.
 `--background white` explicitly skips that menu.
+
+When input is omitted in an interactive terminal, image recipes list files with
+common image extensions directly in your current directory. The list is sorted,
+matches extensions regardless of case, and excludes hidden files and directories.
+It does not search subdirectories. Choose **Enter another path…** to enter a path
+outside this list; if there are no matching files, MaxCLI prompts for a path.
+Canceling the menu stops the command before conversion. The output path is entered
+as text, so you can create a new file.
+
+The same picker works with `max gm commands run appstore-resize` and custom
+recipes using the `imagemagick` engine. An explicit input value, configured input
+default, or configured input choices takes precedence. Non-interactive runs
+require an explicit input or a configured default and never open a picker.
 
 ImageMagick 7 (`magick`) is preferred; GraphicsMagick (`gm convert`) is a fallback.
 If neither exists, conversion prints installation instructions. On macOS run

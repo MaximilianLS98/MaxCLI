@@ -133,3 +133,35 @@ def test_namespace_help_and_core_entry_points(workspace):
     assert run('image', 'appstore').returncode == 2
     assert run('gm').returncode == 1
     assert run('gm', 'commands').returncode == 1
+
+
+@pytest.mark.parametrize('arguments', [('gm',), ('gm', 'commands'), ('gm', 'commands', 'run'), ('gm', 'appstore')])
+def test_interactive_namespace_runs_recipe_with_directory_picker(tmp_path, monkeypatch, arguments):
+    from types import SimpleNamespace
+    from maxcli import cli, images, saved_commands as recipes
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('MAXCLI_CONFIG_DIR', str(tmp_path / 'config'))
+    source = tmp_path / 'screenshot with spaces.PNG'
+    source.write_bytes(b'source stays unchanged')
+    menu_calls = []
+
+    def select_recipe_or_background(title, choices):
+        menu_calls.append((title, choices))
+        return 'appstore-resize' if 'appstore-resize' in choices else 'white'
+
+    monkeypatch.setattr(recipes, 'interactive_selection', select_recipe_or_background)
+    monkeypatch.setattr(images, 'interactive_selection',
+                        lambda title, choices: menu_calls.append((title, choices)) or source.name)
+    answers = iter(['output with spaces.png', ''])
+    monkeypatch.setattr(recipes, 'prompt_input', lambda _: next(answers))
+    monkeypatch.setattr(images, 'conversion_tool', lambda **kwargs: ['magick'])
+    executed = []
+    monkeypatch.setattr(recipes.subprocess, 'run', lambda command: executed.append(command) or SimpleNamespace(returncode=0))
+    monkeypatch.setattr(cli.sys, 'stdin', SimpleNamespace(isatty=lambda: True))
+    monkeypatch.setattr(cli.sys, 'argv', ['max', *arguments])
+    cli.main()
+    assert executed == [['magick', str(source), '-resize', '1284x2778!', '-background', 'white', '-flatten',
+                         str(tmp_path / 'output with spaces.png')]]
+    assert any(choices == [source.name, images.MANUAL_PATH] for _, choices in menu_calls)
+    assert source.read_bytes() == b'source stays unchanged'

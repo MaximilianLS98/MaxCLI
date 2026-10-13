@@ -2,7 +2,27 @@
 import shutil
 from pathlib import Path
 
-from .runtime import CommandError
+from .runtime import CommandError, prompt_input
+from .utils.interactive import interactive_selection
+
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tif', '.tiff',
+                    '.heic', '.heif', '.avif', '.ico', '.tga', '.svg', '.psd'}
+MANUAL_PATH = 'Enter another path…'
+
+
+def pick_input_image(prompt='Input image path'):
+    """Offer images directly in the invocation directory, with manual entry as a fallback."""
+    directory = Path.cwd()
+    names = sorted((path.name for path in directory.iterdir()
+                    if not path.name.startswith('.') and path.suffix.lower() in IMAGE_EXTENSIONS and path.is_file()),
+                   key=lambda name: (name.casefold(), name))
+    if names:
+        selected = interactive_selection('{} ({})'.format(prompt, directory), names + [MANUAL_PATH])
+        if selected is None:
+            raise CommandError('Image selection cancelled')
+        if selected != MANUAL_PATH:
+            return selected
+    return prompt_input(prompt + ': ')
 
 
 def conversion_tool(required=True):
@@ -48,7 +68,7 @@ def register_commands(subparsers):
     register_saved_commands(subs)
     resize = subs.add_parser('appstore', help='Resize to 1284x2778! and flatten onto white by default',
                              description='Force exact dimensions (may stretch the image), then flatten onto a background.')
-    resize.add_argument('--input', help='Input image path; prompts when omitted')
+    resize.add_argument('--input', help='Input image path; offers images from the current directory when omitted')
     resize.add_argument('--output', help='Output image path; prompts when omitted')
     resize.add_argument('--size', help='ImageMagick geometry, defaults to 1284x2778!')
     resize.add_argument('--background', choices=['white', 'black'], help='Background color; offers choices when omitted')
