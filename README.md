@@ -65,6 +65,29 @@ or browser installation may be required afterward.
 
 See [supported locations, estimates, and cleanup safety](docs/CLEANUP.md).
 
+## Images and saved commands
+
+```sh
+max gm appstore --input screenshot.png --output appstore.png
+max gm                                  # Choose a recipe, then its inputs
+max gm commands run                     # Choose a saved command, then its variables
+max gm commands list
+max gm commands save 'Resize thumbnail' \
+  --command 'magick "{input}" -resize "{size}" "{output}"' \
+  --default 'size=256x256' --engine imagemagick
+max gm commands run 'Resize thumbnail' --set input=photo.png --set output=thumb.png
+max gm commands export image-recipes.json appstore-resize 'Resize thumbnail'
+max gm commands import image-recipes.json --replace
+```
+
+The App Store preset forces **1284x2778** pixels and flattens onto white. Variables
+can have prompts, defaults, and choices. Recipes live in the active channel's
+settings and can be shared as JSON packs. ImageMagick (`magick`) or GraphicsMagick
+(`gm`) is required for image conversion; on macOS, install with
+`brew install imagemagick`.
+
+See [image recipes, variables, and command packs](docs/SAVED_COMMANDS.md).
+
 ## Configuration and modules
 
 ```sh

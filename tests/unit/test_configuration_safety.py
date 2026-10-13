@@ -123,11 +123,15 @@ def test_encrypted_backup_roundtrip(tmp_path, monkeypatch):
         source = tmp_path / 'source'
         source.mkdir()
         (source / 'config.json').write_text('{"coolify_api_key":"encrypted-secret"}')
+        saved = {'version': 1, 'commands': {'Saved recipe': {
+            'command': ['echo', 'inline-secret'], 'variables': {}}}}
+        (source / 'saved_commands.json').write_text(json.dumps(saved))
         archive = backups.create_backup(source, tmp_path / 'archives', recipient)
         assert archive.suffix == '.gpg'
         assert len(list((tmp_path / 'archives').iterdir())) == 1
         backups.restore_backup(archive, tmp_path / 'restored')
         assert json.loads((tmp_path / 'restored/config.json').read_text())['coolify_api_key'] == 'encrypted-secret'
+        assert json.loads((tmp_path / 'restored/saved_commands.json').read_text()) == saved
     finally:
         if shutil.which('gpgconf'):
             subprocess.run(['gpgconf', '--homedir', str(keyring), '--kill', 'gpg-agent'], capture_output=True)

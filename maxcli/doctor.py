@@ -44,10 +44,13 @@ def inspect_environment(all_modules=False, network=False):
 
     configuration = {}
     module_config = {}
-    for filename in ('config.json', 'modules_config.json', 'ssh_targets.json', 'projects.json'):
+    for filename in ('config.json', 'modules_config.json', 'ssh_targets.json', 'projects.json', 'saved_commands.json'):
         path = directory / filename
         try:
             data = read_object(path)
+            if filename == 'saved_commands.json' and path.exists():
+                from .saved_commands import validate_pack
+                validate_pack(data)
             if filename == 'config.json':
                 configuration = data
             if filename == 'modules_config.json':
